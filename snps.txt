@@ -1,0 +1,4 @@
+subjects	snp1	snp2	snp3	snp4
+ind1	0	0	0	1
+ind2	2	2	2	1
+ind3	1	1	2	NA
