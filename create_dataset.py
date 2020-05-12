@@ -96,7 +96,7 @@ def parse_args():
     parser.add_argument(
             '--genotypes',
             type=str,
-            default='snps.txt',
+            default='DATA/snps.txt',
             help=('File of individual genotype values encoded 0,1,2 in a tab-separated format. '
                   'Missing values can be encoded NA, ./. or -1 '
                   'The first line is subjects, snp1_id, snp2_id, ... snpN_id '
@@ -111,7 +111,7 @@ def parse_args():
     parser.add_argument(
             '--labels',
             type=str,
-            default='labels.txt',
+            default='DATA/labels.txt',
             help=('File of individual labels. The first column contains the subject ids. '
                   'The second column contains the label for each subject. '
                   '(default: %(default)s)')

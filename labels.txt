@@ -1,4 +1,0 @@
-subjects	pop
-ind3	FIN
-ind1	GBR
-ind2	ACB
