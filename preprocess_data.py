@@ -13,20 +13,18 @@ def preprocess_data():
 
     # Partition data (divide data into the nb of folds)
     partitions = partition(args.folds, (x, y, samples))
-    print(partitions)
 
     # Define data in each fold (test data and the rest of the data)
     data_by_fold = define_folds_data(partitions)
 
     # Replace missing values in each fold (except in test data)
     replace_missing_values(data_by_fold)
-    print('***********')
-    print(data_by_fold)
 
     # Split data in each fold(train, validation and test sets)
-    fold_to_dataset = split(data_by_fold, args.split)
-    for k,v in fold_to_dataset.items():
-        print(k,v)
+    dataset_by_fold = split(data_by_fold, args.split)
+
+    # Save
+    np.savez(args.out, np.array(dataset_by_fold))
 
 
 def load_dataset(filename):
@@ -96,7 +94,7 @@ def replace_missing_values(data_by_fold):
 
 def split(data_by_fold, split_ratio):
     # Split data into training and validation sets
-    fold_to_dataset = {}
+    dataset_by_fold = []
     for f in range(len(data_by_fold)):
         data = data_by_fold[f][0]
         test = data_by_fold[f][1]
@@ -105,9 +103,9 @@ def split(data_by_fold, split_ratio):
         data_train = [d[0:split_point] for d in data]
         data_valid = [d[split_point:] for d in data]
 
-        fold_to_dataset[f] = {'test':test, 'train':data_train, 'valid':data_valid}
+        dataset_by_fold.append([data_train, data_valid, test])
 
-    return fold_to_dataset
+    return dataset_by_fold
 
 
 def parse_args():
@@ -135,6 +133,13 @@ def parse_args():
             help=('Number in range ]0,1[ for split of train/validation data. '
                   'Example: 0.6 indicates 60%% of the data for training and '
                   '40%% for validation. Default: %(default).2f')
+            )
+
+    parser.add_argument(
+            '--out',
+            type=str,
+            default='dataset_by_fold.npz',
+            help='Output file Default: %(default)s'
             )
 
     return parser.parse_args()
