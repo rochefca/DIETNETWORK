@@ -6,7 +6,7 @@ def preprocess_data():
     args = parse_args()
 
     # Load genotypes(x), labels(y) and samples
-    x, y, samples = load_dataset(args.dataset)
+    x, y, samples, label_names, snp_names = load_dataset(args.dataset)
 
     # Shuffle data before making folds
     x, y, samples = shuffle((x, y, samples))
@@ -24,13 +24,14 @@ def preprocess_data():
     dataset_by_fold = split(data_by_fold, args.split)
 
     # Save
-    np.savez(args.out, np.array(dataset_by_fold))
+    np.savez(args.out, data_by_fold=np.array(dataset_by_fold),
+             label_names=label_names, snp_names=snp_names)
 
 
 def load_dataset(filename):
     data = np.load(filename)
 
-    return data['inputs'].astype(np.float32), data['labels'], data['samples']
+    return data['inputs'].astype(np.float32), data['labels'], data['samples'], data['label_names'], data['snp_names']
 
 
 def shuffle(data, seed=23):
@@ -87,7 +88,7 @@ def replace_missing_values(data_by_fold):
         x = data[0][0]
 
         mask = (x >= 0) # Non-missing values
-        per_feature_mean = (x*mask).sum(0) / (mask.sum())
+        per_feature_mean = (x*mask).sum(0) / (mask.sum(0))
         for i in range(x.shape[0]):
             x[i] = mask[i]*x[i] + (1-mask[i])*per_feature_mean
 
@@ -109,7 +110,7 @@ def split(data_by_fold, split_ratio):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Partition data into folds")
+    parser = argparse.ArgumentParser(description="Preprocess data into folds")
 
     parser.add_argument(
             '--dataset',
