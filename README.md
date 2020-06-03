@@ -7,3 +7,7 @@ Pytorch implementation of DietNetwork
 ## Things to reconsider
 - Missing values : For now, features means are computed on training and valid sets together
 - Embedding : missing values (replaced by feature mean, float) in genotypes (0,1,2) frequencies computation
+## Packages
+- Python 3.6
+- Pytorch installation on kepler :
+pip install torch==1.5.0+cu101 torchvision==0.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html 
