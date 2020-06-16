@@ -9,6 +9,7 @@ Pytorch implementation of DietNetwork
 - Not considered in embedding computation
 - Feature mean computed over training and validation sets
 ## To do
+- Missing values should be handle after embedding computation
 - Data loader, inlcuding genotypes normalization
 - Training loop structure
 - Accuracy monitoring and early stopping
