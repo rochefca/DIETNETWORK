@@ -1,7 +1,7 @@
 # DIETNETWORK
 Pytorch implementation of DietNetwork
 ## Scripts
-1. **create_dataset.py** : takes snps.txt and labels.txt files and creates dataset.npz
+1. **create_dataset.py** : Create dataset and partition data into folds. The script takes snps.txt and labels.txt files as input to create dataset.npz and folds_indexes.npz
 2. **preprocess_data.py** : Shuffles data, partition data into folds, creates datasets by fold (train, valid, test) and replace missing values with feature means. Dataset for each fold are saved in dataset_by_fold.npz
 3. **generate_embedding.py** : Takes dataset_by_fold.npz and computes the embedding (genotype freq by genotype by class) of every fold. Embedding of each fold is saved in embedding.npz
 4. **model.py** : Model definition of feature embedding (auxiliary) and discriminative (main) networks.
