@@ -1,9 +1,13 @@
 """
-Script to process data in a npy format
-Creates dataset.npy
+Script to process data in a npz format and partition data into folds
+Creates dataset.npz and folds_indexes.npz
 """
 import argparse
+
 import numpy as np
+
+import dataset_utils as du
+
 
 def create_dataset():
     args = parse_args()
@@ -22,20 +26,28 @@ def create_dataset():
         label_names, encoded_labels = onehot_encode_labels(ordered_labels)
 
         # Save dataset to file
-        np.savez(args.out,
+        np.savez(args.data_out,
                  inputs=genotypes,
                  snp_names=snps,
                  labels=encoded_labels,
                  label_names=label_names,
                  samples=samples)
 
-    # If labels are not categories (ie prediction is a regression)
+    # If labels are not categories
     else:
-        np.savez(args.out,
+        np.savez(args.data_out,
                  inputs=genotypes,
                  snp_names=snp_names,
                  labels=ordered_labels,
                  samples=samples)
+
+    # Partition data into fold (using indexes of the numpy arrays)
+    indices = np.arange(len(samples))
+    du.shuffle(indices, seed=args.seed)
+    partition = du.partition(indices, args.nb_folds)
+    np.savez(args.fold_out,
+             folds_indexes=partition,
+             seed=np.array([args.seed]))
 
 
 def load_snps(filename):
@@ -91,7 +103,9 @@ def onehot_encode_labels(labels):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Create dataset for Diet Network.")
+    parser = argparse.ArgumentParser(
+            description='Create dataset and partition data into folds.'
+            )
 
     parser.add_argument(
             '--genotypes',
@@ -126,9 +140,32 @@ def parse_args():
             )
 
     parser.add_argument(
-            '--out',
+            '--nb-folds',
+            type=int,
+            default=5,
+            help='Number of folds. Use 1 for no folds. Default: %(default)i'
+            )
+
+    parser.add_argument(
+            '--seed',
+            type=int,
+            default=23,
+            help=('Seed for fixing randomness used in the shuffle of the '
+                  'data before partition into folds. Not using this argument '
+                  'will just give a random shuffle. Default: %(default)i')
+            )
+
+    parser.add_argument(
+            '--data-out',
             default='dataset.npz',
             help='Name of returned dataset. Default: %(default)s'
+            )
+
+    parser.add_argument(
+            '--fold-out',
+            default='folds_indexes.npz',
+            help=('Name of file that contain data indexes of each fold '
+                  'Default: %(default)s')
             )
 
     return parser.parse_args()

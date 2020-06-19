@@ -53,8 +53,9 @@ def compute_fold_embedding(fold_data):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-            description='Generate embeddings for every fold'
+            description='Generate embedding'
             )
+
 
     parser.add_argument(
             '--dataset-by-fold',
