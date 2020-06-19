@@ -1,37 +1,34 @@
 import argparse
+
 import numpy as np
 
+import dataset_utils as du
+
+
 NB_POSSIBLE_GENOTYPES = 3
+
 
 def generate_embedding():
     args = parse_args()
 
     # Load data
-    data_by_fold, label_names = load_data(args.dataset_by_fold)
-    print(data_by_fold.shape)
-
-    # Number of folds
-    folds = data_by_fold.shape[0]
+    data = np.load(args.dataset)
+    folds_indexes = du.load_folds_indexes(args.folds_indexes)
 
     embedding_by_fold = []
-    for f in range(folds):
-        embedding = compute_fold_embedding(data_by_fold[f])
-        embedding_by_fold.append(embedding)
+    for fold in range(len(folds_indexes)):
+        # Get fold data (x,y,samples) that are not test data
+        (x, y, _) = du.get_fold_data(fold, folds_indexes, data)
+
+        # Compute embedding for the fold
+        emb = compute_fold_embedding(x, y)
+        embedding_by_fold.append(emb)
 
     # Save
     np.savez(args.out, emb=embedding_by_fold)
 
 
-def load_data(filename):
-    data = np.load(filename, allow_pickle=True)
-
-    return data['data_by_fold'], data['label_names']
-
-
-def compute_fold_embedding(fold_data):
-    # Combine train and valid data
-    xs = np.vstack([fold_data[0][0], fold_data[1][0]])
-    onehot_ys = np.vstack([fold_data[0][1], fold_data[1][1]])
+def compute_fold_embedding(xs, onehot_ys):
     ys = onehot_ys.argmax(axis=1)
 
     # Total number of classes
@@ -56,13 +53,20 @@ def parse_args():
             description='Generate embedding'
             )
 
+    parser.add_argument(
+            '--dataset',
+            type=str,
+            default='dataset.npz',
+            help=('Path to dataset.npz returned by create_dataset.py '
+                  'Default: %(default)s')
+            )
 
     parser.add_argument(
-            '--dataset-by-fold',
+            '--folds-indexes',
             type=str,
-            default='dataset_by_fold.npz',
-            help=('Dataset with train, valid and test set partitioned into '
-                  'folds. Default: %(default)s')
+            default='folds_indexes.npz',
+            help=('Path to folds_indexes.npz returned by create_dataset.py '
+                  'default: %(default)s')
             )
 
     parser.add_argument(

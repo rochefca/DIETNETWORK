@@ -150,9 +150,9 @@ def parse_args():
             '--seed',
             type=int,
             default=23,
-            help=('Seed for fixing randomness used in the shuffle of the '
-                  'data before partition into folds. Not using this argument '
-                  'will just give a random shuffle. Default: %(default)i')
+            help=('Fix seed for shuffle of data before partition into folds. '
+                  'Not using this option will give a random shuffle. '
+                  'Default: %(default)i')
             )
 
     parser.add_argument(
