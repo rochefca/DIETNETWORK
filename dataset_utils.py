@@ -1,5 +1,26 @@
 import math
+
 import numpy as np
+
+import torch
+
+
+class FoldDataset(torch.utils.data.Dataset):
+    def __init__(self, xs, ys, samples):
+        self.xs = xs
+        self.ys = ys
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, index):
+        # Index can be a number or a list of numbers
+        x = self.xs[index]
+        y = self.ys[index]
+        sample = self.samples[index]
+
+        return x, y, sample
 
 
 def shuffle(indices, seed=None):
@@ -43,8 +64,13 @@ def split(indices, split_ratio, seed):
     return train_indexes, valid_indexes
 
 
-# Not sure if this will be used
 def load_data(filename):
+    data = np.load(filename)
+
+    return data
+
+# Not sure if this will be used
+def load_data_(filename):
     data = np.load(filename)
 
     return data['inputs'], data['labels'], data['samples'],\
@@ -91,7 +117,36 @@ def get_fold_data(which_fold, folds_indexes, data, split_ratio=None, seed=None):
     y_test = data['labels'][test_indexes]
     samples_test = data['samples'][test_indexes]
 
-    return x_train, y_train, samples_train,\
+    return train_indexes, valid_indexes, test_indexes,\
+           x_train, y_train, samples_train,\
            x_valid, y_valid, samples_valid,\
            x_test, y_test, samples_test
 
+
+def compute_norm_values(x):
+    # Non missing values
+    mask = (x >= 0)
+
+    # Compute mean of every column (feature)
+    per_feature_mean = (x*mask).sum(axis=0) / (mask.sum(0))
+
+    # S.d. of every column (feature)
+    per_feature_sd = np.sqrt(
+            ((x*mask-mask*per_feature_mean)**2).sum(axis=0) / (mask.sum(axis=0)-1)
+            )
+    per_feature_sd += 1e-6
+
+    return per_feature_mean, per_feature_sd
+
+
+def replace_missing_values(x, per_feature_mean):
+    mask = (x >= 0)
+
+    for i in range(x.shape[0]):
+        x[i] =  mask[i]*x[i] + (1-mask[i])*per_feature_mean
+
+
+def normalize(x, per_feature_mean, per_feature_sd):
+    x_norm = (x - per_feature_mean) / per_feature_sd
+
+    return x_norm
