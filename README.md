@@ -15,13 +15,14 @@ Pytorch implementation of DietNetwork
 ## Data preprocessing
 ### Auxiliary net
 - Missing values are -1 and are not included in the computation of genotypic frequencies
+- Embedding values are computed on train and valid sets
 ### Main net
-- Missing values are replaced in train and valid sets by the feature mean of the training set
-- Features of train and valid sets are normalized using mean and sd computed on training set
+- Missing values are replaced in train, valid and test sets by the feature mean of the training set
+- Features of train, valid and test sets are normalized using mean and sd computed on training set
 ## To do
 - [x] Embedding
-- [x] Data preprocessing : Missing values (train + valid)
-- [x] Data preprocessing : Data normalization (train + valid)
+- [x] Data preprocessing : Missing values
+- [x] Data preprocessing : Data normalization
 - [x] Dataset class (for dataloader)
 - [x] Auxiliary and Main networks models
 - [ ] Training loop
