@@ -10,14 +10,14 @@ import dataset_utils as du
 def main():
     args = parse_args()
 
-    # TO DO: Do this in a more strategic place
+    # TO DO: Set GPU in a more strategic place
     # Set GPU
     os.environ["CUDA_VISIBLE_DEVICES"]="5"
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
     device = torch.device("cuda")
 
-    # Get fold data
+    # Get fold data (indexes and samples are np arrays, x,y are tensors)
     data = du.load_data(args.dataset)
     folds_indexes = du.load_folds_indexes(args.folds_indexes)
     (train_indexes, valid_indexes, test_indexes,
@@ -29,33 +29,40 @@ def main():
                                         split_ratio=args.train_valid_ratio,
                                         seed=args.seed)
 
-    # TO DO: Those steps should be ran on gpu
+    # Put data on GPU
+    x_train, x_valid, x_test = x_train.to(device), x_valid.to(device), \
+            x_test.to(device)
+    x_train, x_valid, x_test = x_train.float(), x_valid.float(), \
+            x_test.float()
+    y_train, y_valid, y_test = y_train.to(device), y_valid.to(device), \
+            y_test.to(device)
+
     # Compute mean and sd of training set for normalization
     mus, sigmas = du.compute_norm_values(x_train)
 
     # Replace missing values
-    x_train = x_train.astype(float)
-    x_valid = x_valid.astype(float)
     du.replace_missing_values(x_train, mus)
     du.replace_missing_values(x_valid, mus)
+    du.replace_missing_values(x_test, mus)
 
     # Normalize
     x_train_normed = du.normalize(x_train, mus, sigmas)
     x_valid_normed = du.normalize(x_valid, mus, sigmas)
+    x_test_normed = du.normalize(x_test, mus, sigmas)
 
-    # Make fold final dataset
+    # Make fold final dataset (xs and ys are casted to tensors)
     fold_dataset = du.FoldDataset(
-            np.vstack((x_train_normed, x_valid_normed, x_test)),
-            np.vstack((y_train, y_valid, y_test)),
+            torch.cat((x_train_normed, x_valid_normed, x_test_normed), dim=0),
+            torch.cat((y_train, y_valid, y_test), dim=0),
             np.concatenate((samples_train, samples_valid, samples_test))
             )
 
     # Load embedding
     emb = du.load_embedding(args.embedding, args.which_fold)
+    emb = emb.to(device)
 
-    # Put data on GPU
-    emb.to(device)
-
+    print(fold_dataset.xs)
+    print(fold_dataset.ys)
     # Instantiate model
     # Input size
     n_feats_emb = emb.size()[1] # input of aux net
@@ -64,7 +71,7 @@ def main():
     emb_n_hidden_u = 100
     discrim_n_hidden1_u = 100
     discrim_n_hidden2_u = 100
-    n_targets =
+    #n_targets =
 
 
 

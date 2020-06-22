@@ -7,9 +7,9 @@ import torch
 
 class FoldDataset(torch.utils.data.Dataset):
     def __init__(self, xs, ys, samples):
-        self.xs = xs
-        self.ys = ys
-        self.samples = samples
+        self.xs = xs #tensor on gpu
+        self.ys = ys #tensor on gpu
+        self.samples = samples #np array
 
     def __len__(self):
         return len(self.samples)
@@ -84,9 +84,11 @@ def load_folds_indexes(filename):
 
 
 def load_embedding(filename, which_fold):
-    embs = np.load(filename)
+    data = np.load(filename)
+    embs = data['emb']
+    emb = torch.from_numpy(embs[which_fold])
 
-    return embs[which_fold]
+    return emb
 
 
 def get_fold_data(which_fold, folds_indexes, data, split_ratio=None, seed=None):
@@ -111,16 +113,16 @@ def get_fold_data(which_fold, folds_indexes, data, split_ratio=None, seed=None):
     train_indexes, valid_indexes = split(other_indexes, split_ratio, seed)
 
     # Get data (x,y,samples) of each set (train, valid, test)
-    x_train = data['inputs'][train_indexes]
-    y_train = data['labels'][train_indexes]
+    x_train = torch.from_numpy(data['inputs'][train_indexes])
+    y_train = torch.from_numpy(data['labels'][train_indexes])
     samples_train = data['samples'][train_indexes]
 
-    x_valid = data['inputs'][valid_indexes]
-    y_valid = data['labels'][valid_indexes]
+    x_valid = torch.from_numpy(data['inputs'][valid_indexes])
+    y_valid = torch.from_numpy(data['labels'][valid_indexes])
     samples_valid = data['samples'][valid_indexes]
 
-    x_test = data['inputs'][test_indexes]
-    y_test = data['labels'][test_indexes]
+    x_test = torch.from_numpy(data['inputs'][test_indexes])
+    y_test = torch.from_numpy(data['labels'][test_indexes])
     samples_test = data['samples'][test_indexes]
 
     return train_indexes, valid_indexes, test_indexes,\
@@ -130,29 +132,39 @@ def get_fold_data(which_fold, folds_indexes, data, split_ratio=None, seed=None):
 
 
 def compute_norm_values(x):
+    """
+    x is a tensor
+    """
     # Non missing values
     mask = (x >= 0)
 
     # Compute mean of every column (feature)
-    per_feature_mean = (x*mask).sum(axis=0) / (mask.sum(0))
+    per_feature_mean = torch.sum(x*mask, dim=0) / torch.sum(mask, dim=0)
 
     # S.d. of every column (feature)
-    per_feature_sd = np.sqrt(
-            ((x*mask-mask*per_feature_mean)**2).sum(axis=0) / (mask.sum(axis=0)-1)
-            )
+    per_feature_sd = torch.sqrt(
+            torch.sum((x*mask-mask*per_feature_mean)**2, dim=0) / \
+                    (torch.sum(mask, dim=0) - 1)
+                    )
     per_feature_sd += 1e-6
 
     return per_feature_mean, per_feature_sd
 
 
 def replace_missing_values(x, per_feature_mean):
+    """
+    x and per_feature_mean are tensors
+    """
     mask = (x >= 0)
 
     for i in range(x.shape[0]):
-        x[i] =  mask[i]*x[i] + (1-mask[i])*per_feature_mean
+        x[i] =  mask[i]*x[i] + (~mask[i])*per_feature_mean
 
 
 def normalize(x, per_feature_mean, per_feature_sd):
+    """
+    x, per_feature_mean and per_feature_sd are tensors
+    """
     x_norm = (x - per_feature_mean) / per_feature_sd
 
     return x_norm
