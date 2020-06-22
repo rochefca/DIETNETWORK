@@ -34,8 +34,12 @@ def main():
             x_test.to(device)
     x_train, x_valid, x_test = x_train.float(), x_valid.float(), \
             x_test.float()
-    y_train, y_valid, y_test = y_train.to(device), y_valid.to(device), \
-            y_test.to(device)
+    # TO DO: y encoding returned by create_dataset.py should not be onehot
+    _, y_train_idx = torch.max(y_train, dim=1)
+    _, y_valid_idx = torch.max(y_valid, dim=1)
+    _, y_test_idx = torch.max(y_test, dim=1)
+    y_train, y_valid, y_test = y_train_idx.to(device), y_valid_idx.to(device), \
+            y_test_idx.to(device)
 
     # Compute mean and sd of training set for normalization
     mus, sigmas = du.compute_norm_values(x_train)
@@ -57,6 +61,7 @@ def main():
             np.concatenate((samples_train, samples_valid, samples_test))
             )
 
+    print(fold_dataset.ys)
     # Load embedding
     emb = du.load_embedding(args.embedding, args.which_fold)
     emb = emb.to(device)
@@ -71,7 +76,10 @@ def main():
     emb_n_hidden_u = 100
     discrim_n_hidden1_u = 100
     discrim_n_hidden2_u = 100
-    #n_targets =
+    n_targets = torch.max(fold_dataset.ys).item()
+
+
+
 
 
 
