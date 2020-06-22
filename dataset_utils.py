@@ -83,6 +83,12 @@ def load_folds_indexes(filename):
     return data['folds_indexes']
 
 
+def load_embedding(filename, which_fold):
+    embs = np.load(filename)
+
+    return embs[which_fold]
+
+
 def get_fold_data(which_fold, folds_indexes, data, split_ratio=None, seed=None):
     # Set aside fold nb of which_fold for test
     test_indexes = folds_indexes[which_fold]

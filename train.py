@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 import torch
@@ -9,13 +10,16 @@ import dataset_utils as du
 def main():
     args = parse_args()
 
-    # Load dataset
-    data = du.load_data(args.dataset)
-
-    # Load indexes of each fold
-    folds_indexes = du.load_folds_indexes(args.folds_indexes)
+    # TO DO: Do this in a more strategic place
+    # Set GPU
+    os.environ["CUDA_VISIBLE_DEVICES"]="5"
+    print('Cuda available:', torch.cuda.is_available())
+    print('Current cuda device ', torch.cuda.current_device())
+    device = torch.device("cuda")
 
     # Get fold data
+    data = du.load_data(args.dataset)
+    folds_indexes = du.load_folds_indexes(args.folds_indexes)
     (train_indexes, valid_indexes, test_indexes,
      x_train, y_train, samples_train,
      x_valid, y_valid, samples_valid,
@@ -39,17 +43,36 @@ def main():
     x_train_normed = du.normalize(x_train, mus, sigmas)
     x_valid_normed = du.normalize(x_valid, mus, sigmas)
 
-    # Make final fold dataset
+    # Make fold final dataset
     fold_dataset = du.FoldDataset(
             np.vstack((x_train_normed, x_valid_normed, x_test)),
             np.vstack((y_train, y_valid, y_test)),
             np.concatenate((samples_train, samples_valid, samples_test))
             )
 
+    # Load embedding
+    emb = du.load_embedding(args.embedding, args.which_fold)
+
+    # Put data on GPU
+    emb.to(device)
+
+    # Instantiate model
+    # Input size
+    n_feats_emb = emb.size()[1] # input of aux net
+    n_feats = emb.size()[0] # input of main net
+    # Hidden layers size
+    emb_n_hidden_u = 100
+    discrim_n_hidden1_u = 100
+    discrim_n_hidden2_u = 100
+    n_targets =
+
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
-            description='Train model for a given fold'
+            description=('Preprocess features for main network '
+                         'and train model for a given fold')
             )
 
     parser.add_argument(
@@ -67,6 +90,13 @@ def parse_args():
             help=('Path to folds_indexes.npz returned by create_dataset.py '
                   'Default: %(default)s')
             )
+
+    parser.add_argument(
+        '--embedding',
+        type=str,
+        default='embedding.npz',
+        help=('Path to embedding.npz returned by generate_embedding.py')
+        )
 
     parser.add_argument(
             '--which-fold',
