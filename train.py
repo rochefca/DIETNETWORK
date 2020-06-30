@@ -16,12 +16,24 @@ import model as model
 def main():
     args = parse_args()
 
-    # TO DO: Set GPU in a more strategic place
     # Set GPU
     os.environ["CUDA_VISIBLE_DEVICES"]="5"
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
-    device = torch.device("cuda")
+    #device = torch.device("cuda")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('device:', device)
+
+    # Fix seed
+    if args.seed is not None:
+        seed = args.seed
+        torch.backends.cudnn.deterministic = True
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        #random.seed(seed)
+        if device.type=='cuda':
+                torch.cuda.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed)
 
     # Get fold data (indexes and samples are np arrays, x,y are tensors)
     data = du.load_data(args.dataset)
@@ -121,18 +133,36 @@ def main():
              list(feat_emb_model.parameters())
     optimizer = torch.optim.Adam(params, lr=lr)
 
-    # Training loop
-    n_epochs = 10
-    batch_size = 138
+    # Training loop hyper param
+    n_epochs = 500
+    batch_size = 10
+
+    # Minibatch generators
     train_generator = DataLoader(train_set, batch_size=batch_size)
+    valid_generator = DataLoader(valid_set,
+                                 batch_size=batch_size,
+                                 shuffle=False)
+    # Epoch monitoring
+    train_losses = []
+    train_acc = []
+    valid_losses = []
+    valid_acc = []
+
     for epoch in range(n_epochs):
         print('Epoch {} of {}'.format(epoch+1, n_epochs))
         start_time = time.time()
 
+        # ---Training---
         feat_emb_model.train()
         discrim_model.train()
+
+        # Monitoring
+        train_minibatch_mean_losses = []
+        train_minibatch_n_right = [] #nb of good classifications
+        train_epoch_mean_losses = []
+        train_epoch_accuracy = []
+
         for x_batch, y_batch, _ in train_generator:
-            # Make a training step
             optimizer.zero_grad()
             # Forward pass in aux net
             feat_emb_model_out = feat_emb_model(emb)
@@ -141,8 +171,9 @@ def main():
             discrim_model.hidden_1.weight.data = fatLayer_weights
             discrim_model_out = discrim_model(x_batch)
             # Get prediction
-            yhat = F.softmax(discrim_model_out, dim=1)
-            _, pred = torch.max(yhat, dim=1)
+            with torch.no_grad():
+                yhat = F.softmax(discrim_model_out, dim=1)
+                _, pred = torch.max(yhat, dim=1)
 
             # Compute loss
             loss = criterion(discrim_model_out, y_batch)
@@ -156,16 +187,51 @@ def main():
             # Optim
             optimizer.step()
 
+            # Minibatch monitoring
+            train_minibatch_mean_losses.append(loss.item())
+            train_minibatch_n_right.append(((y_batch - pred) ==0).sum().item())
 
+        # Epoch monitoring
+        epoch_loss = np.array(train_minibatch_mean_losses).mean()
+        train_losses.append(epoch_loss)
 
+        epoch_acc = (np.array(train_minibatch_n_right).sum() / \
+                float(len(train_set))) * 100
+        train_acc.append(epoch_acc)
+        print('loss:', epoch_loss, 'acc:', epoch_acc)
 
+        # ---Validation---
+        discrim_model.eval()
+        for x_batch, y_batch in valid_generator:
+            # Forward pass
+            discrim_model_out = discrim_model(x_batch)
 
+            # Predictions
+            yhat = F.softmax(discrim_model_out, dim=1)
+            _, pred = torch.max(yhat, dim=1)
+
+            # Loss
+            loss = criterion(discrim_model_out, y_batch)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
             description=('Preprocess features for main network '
                          'and train model for a given fold')
+            )
+
+    parser.add_argument(
+            '--exp-path',
+            type=str,
+            required=True,
+            help='Path to experiment directory where to store the results',
+            )
+
+    parser.add_argument(
+            '--exp-name',
+            type=str,
+            required=True,
+            help='Experiment name',
             )
 
     parser.add_argument(
@@ -212,8 +278,7 @@ def parse_args():
             type=int,
             default=23,
             help=('Fix feed for shuffle of data before the split into train '
-                  'and valid sets. Defaut: %(default)i '
-                  'Not using this option will give a random shuffle')
+                  'and valid sets. Defaut: %(default)i')
             )
 
     return parser.parse_args()
