@@ -25,8 +25,9 @@ Pytorch implementation of DietNetwork
 - [x] Data preprocessing : Data normalization
 - [x] Dataset class (for dataloader)
 - [x] Auxiliary and Main networks models
-- [ ] Training loop
-- [ ] Accuracy monitoring and early stopping
+- [x] Training loop
+- [ ] Loss/Accuracy monitoring of train and valid
+- [ ] Early stopping
 - [ ] Test for in-sample data
 - [ ] Test for out-of-sample data
 ## Packages
