@@ -159,8 +159,6 @@ def main():
         # Monitoring
         train_minibatch_mean_losses = []
         train_minibatch_n_right = [] #nb of good classifications
-        train_epoch_mean_losses = []
-        train_epoch_accuracy = []
 
         for x_batch, y_batch, _ in train_generator:
             optimizer.zero_grad()
@@ -198,20 +196,40 @@ def main():
         epoch_acc = (np.array(train_minibatch_n_right).sum() / \
                 float(len(train_set))) * 100
         train_acc.append(epoch_acc)
-        print('loss:', epoch_loss, 'acc:', epoch_acc)
+        print('train loss:', epoch_loss, 'train acc:', epoch_acc)
 
         # ---Validation---
         discrim_model.eval()
-        for x_batch, y_batch in valid_generator:
+
+        # Monitoring
+        valid_minibatch_mean_losses = []
+        valid_minibatch_n_right = [] # nb of good classifications
+
+        for x_batch, y_batch, _ in valid_generator:
             # Forward pass
             discrim_model_out = discrim_model(x_batch)
 
             # Predictions
-            yhat = F.softmax(discrim_model_out, dim=1)
-            _, pred = torch.max(yhat, dim=1)
+            with torch.no_grad():
+                yhat = F.softmax(discrim_model_out, dim=1)
+                _, pred = torch.max(yhat, dim=1)
 
             # Loss
             loss = criterion(discrim_model_out, y_batch)
+
+            # Minibatch monitoring
+            weighted_loss = loss.item()*len(y_batch) # for unequal minibatches
+            valid_minibatch_mean_losses.append(weighted_loss)
+            valid_minibatch_n_right.append(((y_batch - pred) ==0).sum().item())
+
+        # Epoch monitoring
+        epoch_loss = np.array(valid_minibatch_mean_losses).sum()/len(valid_set)
+        valid_losses.append(epoch_loss)
+
+        epoch_acc = (np.array(valid_minibatch_n_right).sum() / \
+                float(len(valid_set))) * 100
+        valid_acc.append(epoch_acc)
+        print('valid loss:', epoch_loss, 'valid acc:', epoch_acc)
 
 
 def parse_args():
