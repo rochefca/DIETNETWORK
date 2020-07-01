@@ -3,6 +3,7 @@ Script to process data in a npz format and partition data into folds
 Creates dataset.npz and folds_indexes.npz
 """
 import argparse
+import os
 
 import numpy as np
 
@@ -26,7 +27,7 @@ def create_dataset():
         label_names, encoded_labels = onehot_encode_labels(ordered_labels)
 
         # Save dataset to file
-        np.savez(args.data_out,
+        np.savez(os.path.join(args.exp_path,args.data_out),
                  inputs=genotypes,
                  snp_names=snps,
                  labels=encoded_labels,
@@ -35,7 +36,7 @@ def create_dataset():
 
     # If labels are not categories
     else:
-        np.savez(args.data_out,
+        np.savez(os.path.join(args.exp_path, args.data_out),
                  inputs=genotypes,
                  snp_names=snp_names,
                  labels=ordered_labels,
@@ -45,7 +46,7 @@ def create_dataset():
     indices = np.arange(len(samples))
     du.shuffle(indices, seed=args.seed)
     partition = du.partition(indices, args.nb_folds)
-    np.savez(args.fold_out,
+    np.savez(os.path.join(args.exp_path,args.fold_out),
              folds_indexes=partition,
              seed=np.array([args.seed]))
 
@@ -108,25 +109,28 @@ def parse_args():
             )
 
     parser.add_argument(
+            '--exp-path',
+            type=str,
+            default='../EXPERIMENT_01',
+            help='Path to folder where to put results. Default: %(default)s'
+            )
+
+    parser.add_argument(
             '--genotypes',
             type=str,
-            default='DATA/snps.txt',
-            help=('File of individual genotype values encoded 0,1,2 in a tab-separated format. '
+            default='../DATA/snps.txt',
+            help=('Path and filename of individual genotype values encoded '
+                  '0,1,2 in a tab-separated format. '
                   'Missing values can be encoded NA, ./. or -1 '
-                  'The first line is subjects, snp1_id, snp2_id, ... snpN_id '
-                  'Each line contains the genotype values of all snps for 1 individual\n'
-                  'subjects snp1    snp2    snp3\n'
-                  'ind1  0   0   2\n'
-                  'ind2 1   0   2\n'
-                  'ind3 0 NA 1\n'
                   '(default: %(default)s)')
             )
 
     parser.add_argument(
             '--labels',
             type=str,
-            default='DATA/labels.txt',
-            help=('File of individual labels. The first column contains the subject ids. '
+            default='../DATA/labels.txt',
+            help=('Path and filename of individual labels. '
+                  'The first column contains the subject ids. '
                   'The second column contains the label for each subject. '
                   '(default: %(default)s)')
             )
@@ -151,20 +155,19 @@ def parse_args():
             type=int,
             default=23,
             help=('Fix seed for shuffle of data before partition into folds. '
-                  'Not using this option will give a random shuffle. '
                   'Default: %(default)i')
             )
 
     parser.add_argument(
             '--data-out',
             default='dataset.npz',
-            help='Name of returned dataset. Default: %(default)s'
+            help='Name of file for the returned dataset. Default: %(default)s'
             )
 
     parser.add_argument(
             '--fold-out',
             default='folds_indexes.npz',
-            help=('Name of file that contain data indexes of each fold '
+            help=('Name of file that will contain data indexes of each fold '
                   'Default: %(default)s')
             )
 
