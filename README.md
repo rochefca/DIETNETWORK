@@ -15,6 +15,15 @@ Pytorch implementation of DietNetwork
 - **model.py** : Model definition of feature embedding (auxiliary) and discriminative (main) networks.
 - **mainloop_utils.py** : Function used in the training loop (get_predictions, compute_accuracy, eval_step, ...)
 - **preprocess_data.py** : This script will be removed eventually. Shuffles data, partition data into folds, creates datasets by fold (train, valid, test) and replace missing values with feature means. Dataset for each fold are saved in dataset_by_fold.npz
+
+
+## Files
+- **DATA/snps.txt** : File of genotypes, additive encoding.
+- **DATA/labels.txt** : File of samples and their label.
+- **EXPERIMENT_01/dataset.npz** : Global data parsed from snps.txt and labels.txt.
+- **EXPERIMENT_01/folds_indexes.npz** : Array index (arrays are in dataset.npz) for each fold. The indexes are those of the data points to use as test.
+
+
 ## Data preprocessing
 ### Auxiliary net
 - Missing values are -1 and are not included in the computation of genotypic frequencies
