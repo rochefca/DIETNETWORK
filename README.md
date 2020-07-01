@@ -11,6 +11,7 @@ Pytorch implementation of DietNetwork
 ### Helper scripts
 - **dataset_utils.py** : Data related functions (shuffle, partition, split, get_fold_data, replace_missing_values, normalize, ...)
 - **model.py** : Model definition of feature embedding (auxiliary) and discriminative (main) networks.
+- **mainloop_utils.py** : Function used in the training loop (get_predictions, compute_accuracy, eval_step, ...)
 - **preprocess_data.py** : This script will be removed eventually. Shuffles data, partition data into folds, creates datasets by fold (train, valid, test) and replace missing values with feature means. Dataset for each fold are saved in dataset_by_fold.npz
 ## Data preprocessing
 ### Auxiliary net
@@ -26,10 +27,11 @@ Pytorch implementation of DietNetwork
 - [x] Dataset class (for dataloader)
 - [x] Auxiliary and Main networks models
 - [x] Training loop
-- [ ] Loss/Accuracy monitoring of train and valid
-- [ ] Early stopping
+- [x] Loss/Accuracy monitoring of train and valid
+- [x] Early stopping
 - [ ] Test for in-sample data
 - [ ] Test for out-of-sample data
+- [ ] Save model params, results
 ## Packages
 - Python 3.6
 - Pytorch installation on kepler :
