@@ -4,10 +4,12 @@ Pytorch implementation of DietNetwork
 ### Main scripts
 1. **create_dataset.py** : Create dataset and partition data into folds. The script takes snps.txt and labels.txt files as input to create dataset.npz and folds_indexes.npz
 2. **generate_embedding.py** : Takes dataset.npz and folds_indexes.npz files created in the previous step and computes the embedding (genotypic frequency) of every fold. Embedding of each fold is saved in embedding.npz
-3. **train.py** : For now, this script preprocesses data for discrim net.
+3. **train.py** : Whole training process. Data preprocessing for discrim net: 
   (i) Feature mean is computed on the training set
   (ii) Missing values are replaced in train and valid sets with the feature mean
-  (iii) Features are normalized using the feature mean computed in (i) and a sd computed on the training set
+  (iii) Features are normalized using the feature mean computed in (i) and a sd computed on the training set. The training loop monitors the accuracy on the validation set for early stopping.
+  
+  
 ### Helper scripts
 - **dataset_utils.py** : Data related functions (shuffle, partition, split, get_fold_data, replace_missing_values, normalize, ...)
 - **model.py** : Model definition of feature embedding (auxiliary) and discriminative (main) networks.
@@ -29,7 +31,7 @@ Pytorch implementation of DietNetwork
 - [x] Training loop
 - [x] Loss/Accuracy monitoring of train and valid
 - [x] Early stopping
-- [ ] Test for in-sample data
+- [x] Test for in-sample data
 - [ ] Test for out-of-sample data
 - [ ] Save model params, results
 ## Packages
