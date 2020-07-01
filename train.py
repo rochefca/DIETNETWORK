@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 import dataset_utils as du
 import model as model
+import mainloop_utils as mlu
 
 
 def main():
@@ -73,14 +74,6 @@ def main():
     x_test_normed = du.normalize(x_test, mus, sigmas)
 
     # Make fold final dataset
-    """
-    fold_dataset = du.FoldDataset(
-            torch.cat((x_train_normed, x_valid_normed, x_test_normed), dim=0),
-            torch.cat((y_train, y_valid, y_test), dim=0),
-            np.concatenate((samples_train, samples_valid, samples_test))
-            )
-    print(fold_dataset.xs.type())
-    """
     train_set = du.FoldDataset(x_train_normed, y_train, samples_train)
     valid_set = du.FoldDataset(x_valid_normed, y_valid, samples_valid)
     test_set = du.FoldDataset(x_test_normed, y_test, samples_test)
@@ -134,7 +127,7 @@ def main():
     optimizer = torch.optim.Adam(params, lr=lr)
 
     # Training loop hyper param
-    n_epochs = 500
+    n_epochs = args.epochs
     batch_size = 10
 
     # Minibatch generators
@@ -142,11 +135,22 @@ def main():
     valid_generator = DataLoader(valid_set,
                                  batch_size=batch_size,
                                  shuffle=False)
-    # Epoch monitoring
+
+    # Monitoring: Epoch loss and accuracy
     train_losses = []
     train_acc = []
     valid_losses = []
     valid_acc = []
+
+    # Monitoring: validation baseline
+    min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
+                                       discrim_model, criterion)
+    print('min loss:',min_loss, 'best_acc:', best_acc)
+
+    # Monitoring: Nb epoch without improvement after which to stop training
+    patience = 0
+    max_patience = args.patience
+    has_early_stoped = False
 
     for epoch in range(n_epochs):
         print('Epoch {} of {}'.format(epoch+1, n_epochs))
@@ -156,7 +160,7 @@ def main():
         feat_emb_model.train()
         discrim_model.train()
 
-        # Monitoring
+        # Monitoring: Minibatch loss and accuracy
         train_minibatch_mean_losses = []
         train_minibatch_n_right = [] #nb of good classifications
 
@@ -168,10 +172,8 @@ def main():
             fatLayer_weights = torch.transpose(feat_emb_model_out,1,0)
             discrim_model.hidden_1.weight.data = fatLayer_weights
             discrim_model_out = discrim_model(x_batch)
-            # Get prediction
-            with torch.no_grad():
-                yhat = F.softmax(discrim_model_out, dim=1)
-                _, pred = torch.max(yhat, dim=1)
+            # Get prediction (softmax)
+            pred = mlu.get_predictions(discrim_model_out)
 
             # Compute loss
             loss = criterion(discrim_model_out, y_batch)
@@ -193,43 +195,35 @@ def main():
         epoch_loss = np.array(train_minibatch_mean_losses).mean()
         train_losses.append(epoch_loss)
 
-        epoch_acc = (np.array(train_minibatch_n_right).sum() / \
-                float(len(train_set))) * 100
+        epoch_acc = mlu.compute_accuracy(train_minibatch_n_right,
+                                         len(train_set))
         train_acc.append(epoch_acc)
         print('train loss:', epoch_loss, 'train acc:', epoch_acc)
 
         # ---Validation---
-        discrim_model.eval()
-
-        # Monitoring
-        valid_minibatch_mean_losses = []
-        valid_minibatch_n_right = [] # nb of good classifications
-
-        for x_batch, y_batch, _ in valid_generator:
-            # Forward pass
-            discrim_model_out = discrim_model(x_batch)
-
-            # Predictions
-            with torch.no_grad():
-                yhat = F.softmax(discrim_model_out, dim=1)
-                _, pred = torch.max(yhat, dim=1)
-
-            # Loss
-            loss = criterion(discrim_model_out, y_batch)
-
-            # Minibatch monitoring
-            weighted_loss = loss.item()*len(y_batch) # for unequal minibatches
-            valid_minibatch_mean_losses.append(weighted_loss)
-            valid_minibatch_n_right.append(((y_batch - pred) ==0).sum().item())
-
-        # Epoch monitoring
-        epoch_loss = np.array(valid_minibatch_mean_losses).sum()/len(valid_set)
+        epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
+                                              discrim_model, criterion)
         valid_losses.append(epoch_loss)
-
-        epoch_acc = (np.array(valid_minibatch_n_right).sum() / \
-                float(len(valid_set))) * 100
         valid_acc.append(epoch_acc)
         print('valid loss:', epoch_loss, 'valid acc:', epoch_acc)
+
+        # Early stop
+        if mlu.has_improved(best_acc, epoch_acc, min_loss, epoch_loss):
+            patience = 0
+            if epoch_acc > best_acc:
+                best_acc = epoch_acc
+            if epoch_loss < min_loss:
+                min_loss = epoch_loss
+        else:
+            patience += 1
+
+        if patience >= max_patience:
+            has_early_stoped = True
+            break # finish training and go to test step
+
+    # Finish training
+    print('here we are done')
+    print('Early stoping:', has_early_stoped)
 
 
 def parse_args():
@@ -297,6 +291,21 @@ def parse_args():
             default=23,
             help=('Fix feed for shuffle of data before the split into train '
                   'and valid sets. Defaut: %(default)i')
+            )
+
+    parser.add_argument(
+            '--patience',
+            type=int,
+            default=1000,
+            help=('Number of epochs without validation improvement after '
+                  'which to stop training. Default: %(default)i')
+            )
+
+    parser.add_argument(
+            '--epochs',
+            type=int,
+            default=20000,
+            help='Max number of epochs. Default: %(default)i'
             )
 
     return parser.parse_args()
