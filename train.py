@@ -57,8 +57,8 @@ def main():
     _, y_train_idx = torch.max(y_train, dim=1)
     _, y_valid_idx = torch.max(y_valid, dim=1)
     _, y_test_idx = torch.max(y_test, dim=1)
-    y_train, y_valid, y_test = y_train_idx.to(device), y_valid_idx.to(device), \
-            y_test_idx.to(device)
+    y_train, y_valid, y_test = y_train_idx.to(device), \
+            y_valid_idx.to(device), y_test_idx.to(device)
 
     # Compute mean and sd of training set for normalization
     mus, sigmas = du.compute_norm_values(x_train)
@@ -128,13 +128,16 @@ def main():
 
     # Training loop hyper param
     n_epochs = args.epochs
-    batch_size = 10
+    batch_size = 4
 
     # Minibatch generators
     train_generator = DataLoader(train_set, batch_size=batch_size)
     valid_generator = DataLoader(valid_set,
                                  batch_size=batch_size,
                                  shuffle=False)
+    test_generator = DataLoader(test_set,
+                                batch_size=batch_size,
+                                shuffle=False)
 
     # Monitoring: Epoch loss and accuracy
     train_losses = []
@@ -145,7 +148,7 @@ def main():
     # Monitoring: validation baseline
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
                                        discrim_model, criterion)
-    print('min loss:',min_loss, 'best_acc:', best_acc)
+    print('baseline loss:',min_loss, 'baseline acc:', best_acc)
 
     # Monitoring: Nb epoch without improvement after which to stop training
     patience = 0
@@ -219,11 +222,16 @@ def main():
 
         if patience >= max_patience:
             has_early_stoped = True
-            break # finish training and go to test step
+            break # exit training loop
 
     # Finish training
-    print('here we are done')
     print('Early stoping:', has_early_stoped)
+    # TO DO : SAVE MODEL PARAMS
+    # ---Test---
+    print(test_set.ys)
+    pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
+    print(pred)
+    print(acc)
 
 
 def parse_args():

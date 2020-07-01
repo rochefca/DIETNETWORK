@@ -54,5 +54,26 @@ def has_improved(best_acc, actual_acc, min_loss, actual_loss):
     return False
 
 
-def test_step(test_generator, test_size, discrim_model):
-    pass
+def test(test_generator, set_size, discrim_model):
+    discrim_model.eval()
+
+    test_minibatch_n_right = [] # nb of good classifications in a minibatch
+
+    for i, (x_batch, y_batch, samples) in enumerate(test_generator):
+        # Forward pass
+        discrim_model_out = discrim_model(x_batch)
+
+        # Predictions
+        pred = get_predictions(discrim_model_out)
+        if i == 0:
+            test_pred = pred
+        else:
+            test_pred = torch.cat((test_pred,pred), dim=-1)
+
+        # Nb of good classifications for the minibatch
+        test_minibatch_n_right.append(((y_batch - pred) == 0).sum().item())
+
+    # Total accuracy
+    test_acc = compute_accuracy(test_minibatch_n_right, set_size)
+
+    return test_pred, test_acc
