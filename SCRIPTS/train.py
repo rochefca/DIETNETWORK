@@ -18,7 +18,7 @@ def main():
     args = parse_args()
 
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"]="5"
+    os.environ["CUDA_VISIBLE_DEVICES"]="4"
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
     #device = torch.device("cuda")
@@ -37,8 +37,9 @@ def main():
                 torch.cuda.manual_seed_all(seed)
 
     # Get fold data (indexes and samples are np arrays, x,y are tensors)
-    data = du.load_data(args.dataset)
-    folds_indexes = du.load_folds_indexes(args.folds_indexes)
+    data = du.load_data(os.path.join(args.exp_path,args.dataset))
+    folds_indexes = du.load_folds_indexes(
+            os.path.join(args.exp_path,args.folds_indexes))
     (train_indexes, valid_indexes, test_indexes,
      x_train, y_train, samples_train,
      x_valid, y_valid, samples_valid,
@@ -79,7 +80,8 @@ def main():
     test_set = du.FoldDataset(x_test_normed, y_test, samples_test)
 
     # Load embedding
-    emb = du.load_embedding(args.embedding, args.which_fold)
+    emb = du.load_embedding(os.path.join(args.exp_path,args.embedding),
+                            args.which_fold)
     emb = emb.to(device)
     emb = emb.float()
 
@@ -128,7 +130,7 @@ def main():
 
     # Training loop hyper param
     n_epochs = args.epochs
-    batch_size = 4
+    batch_size = 138
 
     # Minibatch generators
     train_generator = DataLoader(train_set, batch_size=batch_size)
@@ -156,7 +158,7 @@ def main():
     has_early_stoped = False
 
     for epoch in range(n_epochs):
-        print('Epoch {} of {}'.format(epoch+1, n_epochs))
+        print('Epoch {} of {}'.format(epoch+1, n_epochs), flush=True)
         start_time = time.time()
 
         # ---Training---
@@ -201,14 +203,14 @@ def main():
         epoch_acc = mlu.compute_accuracy(train_minibatch_n_right,
                                          len(train_set))
         train_acc.append(epoch_acc)
-        print('train loss:', epoch_loss, 'train acc:', epoch_acc)
+        print('train loss:', epoch_loss, 'train acc:', epoch_acc, flush=True)
 
         # ---Validation---
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
         valid_losses.append(epoch_loss)
         valid_acc.append(epoch_acc)
-        print('valid loss:', epoch_loss, 'valid acc:', epoch_acc)
+        print('valid loss:', epoch_loss, 'valid acc:', epoch_acc,flush=True)
 
         # Early stop
         if mlu.has_improved(best_acc, epoch_acc, min_loss, epoch_loss):
@@ -223,6 +225,8 @@ def main():
         if patience >= max_patience:
             has_early_stoped = True
             break # exit training loop
+        end_time = time.time()
+        print('time:', end_time-start_time, flush=True)
 
     # Finish training
     print('Early stoping:', has_early_stoped)
@@ -232,7 +236,11 @@ def main():
     pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
     print(pred)
     print(acc)
-
+    np.savez(os.path.join(args.exp_path, 'final_out'),
+             samples=test_set.samples,
+             labels=test_set.ys.cpu(),
+             pred=pred.cpu(),
+             label_names=data['label_names'])
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -258,23 +266,24 @@ def parse_args():
             '--dataset',
             type=str,
             default='dataset.npz',
-            help=('Path to dataset.npz returned by create_dataset.py '
-                  'Default: %(default)s')
+            help=('Filename of dataset file (which is created by '
+                  'create_dataset.py) Default: %(default)s')
             )
 
     parser.add_argument(
             '--folds-indexes',
             type=str,
             default='folds_indexes.npz',
-            help=('Path to folds_indexes.npz returned by create_dataset.py '
-                  'Default: %(default)s')
+            help=('Filename of folds indexes file (which is '
+                  'created by create_dataset.py) Default: %(default)s')
             )
 
     parser.add_argument(
         '--embedding',
         type=str,
         default='embedding.npz',
-        help=('Path to embedding.npz returned by generate_embedding.py')
+        help=('Filename of embedding file (which is created by '
+              'generate_embedding.py) Default: %(default)s')
         )
 
     parser.add_argument(
