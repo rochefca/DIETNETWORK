@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 def eval_step(valid_generator, set_size, discrim_model, criterion):
-    discrim_model.eval()
+    #discrim_model.eval()
 
     valid_minibatch_mean_losses = []
     valid_minibatch_n_right = [] # nb of good classifications
@@ -55,7 +55,7 @@ def has_improved(best_acc, actual_acc, min_loss, actual_loss):
 
 
 def test(test_generator, set_size, discrim_model):
-    discrim_model.eval()
+    #discrim_model.eval()
 
     test_minibatch_n_right = [] # nb of good classifications in a minibatch
 
