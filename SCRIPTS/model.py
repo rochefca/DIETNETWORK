@@ -6,7 +6,7 @@ class Feat_emb_net(nn.Module):
     def __init__(self, n_feats, n_hidden_u):
         super(Feat_emb_net, self).__init__()
         self.hidden_1 = nn.Linear(n_feats, n_hidden_u, bias=False)
-        nn.init.uniform_(self.hidden_1.weight, a=-0.01, b=0.01)
+        nn.init.uniform_(self.hidden_1.weight, a=-0.02, b=0.02)
 
     def forward(self, x):
         ze = self.hidden_1(x)

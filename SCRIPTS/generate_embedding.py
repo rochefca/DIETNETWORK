@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 
@@ -12,8 +13,10 @@ def generate_embedding():
     args = parse_args()
 
     # Load data
-    data = np.load(args.dataset)
-    folds_indexes = du.load_folds_indexes(args.folds_indexes)
+    data = np.load(os.path.join(args.exp_path,args.dataset))
+    folds_indexes = du.load_folds_indexes(
+            os.path.join(args.exp_path,args.folds_indexes)
+            )
 
     embedding_by_fold = []
     for fold in range(len(folds_indexes)):
@@ -25,7 +28,7 @@ def generate_embedding():
         embedding_by_fold.append(emb)
 
     # Save
-    np.savez(args.out, emb=embedding_by_fold)
+    np.savez(os.path.join(args.exp_path,args.out), emb=embedding_by_fold)
 
 
 def compute_fold_embedding(xs, onehot_ys):
@@ -54,26 +57,35 @@ def parse_args():
             )
 
     parser.add_argument(
+            '--exp-path',
+            type=str,
+            default='../EXPERIMENT_01',
+            help=('Path to experiment folder containing the dataset. '
+                  'Default: %(default)s')
+            )
+
+    parser.add_argument(
             '--dataset',
             type=str,
             default='dataset.npz',
-            help=('Path to dataset.npz returned by create_dataset.py '
-                  'Default: %(default)s')
+            help=('Filename of dataset (which is returned by '
+                  'create_dataset.py) Default: %(default)s')
             )
 
     parser.add_argument(
             '--folds-indexes',
             type=str,
             default='folds_indexes.npz',
-            help=('Path to folds_indexes.npz returned by create_dataset.py '
-                  'default: %(default)s')
+            help=('Filename of folds indexes (which is returned by '
+                  'create_dataset.py) Default: %(default)s')
             )
 
     parser.add_argument(
             '--out',
             type=str,
             default='embedding',
-            help='Output. Default: %(default)s'
+            help=('Name of output file that will contain the embeddings. '
+                  'Default: %(default)s')
             )
 
     return parser.parse_args()
