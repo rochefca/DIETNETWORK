@@ -8,11 +8,16 @@ class Feat_emb_net(nn.Module):
         self.hidden_1 = nn.Linear(n_feats, n_hidden_u, bias=False)
         nn.init.uniform_(self.hidden_1.weight, a=-0.02, b=0.02)
 
-    def forward(self, x):
-        ze = self.hidden_1(x)
-        ae = torch.tanh(ze)
+        self.hidden_2 = nn.Linear(n_hidden_u, n_hidden_u, bias=False)
+        nn.init.uniform_(self.hidden_2.weight, a=-0.02, b=0.02)
 
-        return ae
+    def forward(self, x):
+        ze1 = self.hidden_1(x)
+        ae1 = torch.tanh(ze1)
+        ze2 = self.hidden_2(ae1)
+        ae2 = torch.tanh(ze2)
+
+        return ae2
 
 
 class Discrim_net(nn.Module):

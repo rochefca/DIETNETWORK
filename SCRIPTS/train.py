@@ -18,7 +18,7 @@ def main():
     args = parse_args()
 
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"]="4"
+    os.environ["CUDA_VISIBLE_DEVICES"]="5"
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
     #device = torch.device("cuda")
@@ -156,6 +156,21 @@ def main():
     patience = 0
     max_patience = args.patience
     has_early_stoped = False
+
+    print('***Model params before optimisation***')
+    all_params = []
+    print('Aux net:')
+    for name,param in feat_emb_model.state_dict().items():
+        print(name, param, param.size())
+        all_params.append(param.cpu().numpy())
+
+    print('Main net:')
+    for name,param in discrim_model.state_dict().items():
+        print(name, param, param.size())
+        all_params.append(param.cpu().numpy())
+
+    # Save params init values
+    np.savez('params_init_values.npz', np.array(all_params))
 
     for epoch in range(n_epochs):
         print('Epoch {} of {}'.format(epoch+1, n_epochs), flush=True)
