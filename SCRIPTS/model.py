@@ -100,7 +100,7 @@ class Discrim_net2(nn.Module):
     """
     def __init__(self, n_feats,
                  n_hidden1_u, n_hidden2_u, n_targets,
-                 param_init, input_dropout = 0.):
+                 param_init, input_dropout = 0., incl_bias=True):
         super(Discrim_net2, self).__init__()
 
         # Theano values for params init
@@ -133,6 +133,13 @@ class Discrim_net2(nn.Module):
             nn.init.xavier_uniform_(self.out.weight)
         nn.init.zeros_(self.out.bias)
 
+        #  bias term for fat layer
+        if incl_bias:
+            self.fat_bias = nn.Parameter(data=torch.rand(n_hidden1_u), requires_grad=True)
+            nn.init.zeros_(self.fat_bias)
+        else:
+            self.fat_bias = None
+
         # Dropout
         self.dropout = nn.Dropout()
 
@@ -143,7 +150,7 @@ class Discrim_net2(nn.Module):
         # now ^^^ is passed with forward
         x = self.input_dropout(x)
 
-        z1 = self.hidden_1 = F.linear(x, fatLayer_weights, bias=None)
+        z1 = F.linear(x, fatLayer_weights, bias=self.fat_bias)
         #z1 = self.hidden_1(x)
         a1 = torch.relu(z1)
         a1 = self.bn1(a1)
@@ -162,13 +169,13 @@ class Discrim_net2(nn.Module):
 
 class CombinedModel(nn.Module):
     def __init__(self, n_feats, n_hidden_u, n_hidden1_u, n_hidden2_u,
-                 n_targets, param_init, input_dropout=0.):
+                 n_targets, param_init, input_dropout=0., incl_bias=True):
         super(CombinedModel, self).__init__()
 
         # Initialize feat. embedding and discriminative networks
         self.feat_emb = Feat_emb_net(n_feats, n_hidden_u, param_init)
         self.disc_net = Discrim_net2(n_feats, n_hidden1_u, n_hidden2_u,
-                                     n_targets, param_init, input_dropout)
+                                     n_targets, param_init, input_dropout, incl_bias)
 
 
     def forward(self, emb, x_batch):
