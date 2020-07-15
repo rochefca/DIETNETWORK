@@ -104,9 +104,10 @@ def main():
     comb_model = model.CombinedModel(
                  n_feats=n_feats_emb,
                  n_hidden_u=emb_n_hidden_u,
-                 n_hidden1_u=discrim_n_hidden1_u, 
+                 n_hidden1_u=discrim_n_hidden1_u,
                  n_hidden2_u=discrim_n_hidden2_u,
                  n_targets=n_targets,
+                 param_init=args.param_init,
                  input_dropout=0.)
     comb_model.to(device)
 
@@ -141,7 +142,7 @@ def main():
              list(feat_emb_model.parameters())
     optimizer = torch.optim.Adam(params, lr=lr)
     """
-    
+
     optimizer = torch.optim.Adam(comb_model.parameters(), lr=lr)
 
     # Training loop hyper param
@@ -164,11 +165,11 @@ def main():
     valid_acc = []
 
     # Monitoring: validation baseline
-    
+
     # this is the discriminative model!
     comb_model.eval()
     discrim_model = lambda x: comb_model(emb, x)
-    
+
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
                                        discrim_model, criterion)
     print('baseline loss:',min_loss, 'baseline acc:', best_acc)
@@ -195,7 +196,7 @@ def main():
 
         for x_batch, y_batch, _ in train_generator:
             optimizer.zero_grad()
-            
+
             """
             # Forward pass in aux net
             feat_emb_model_out = feat_emb_model(emb)
@@ -206,7 +207,7 @@ def main():
             """
 
             discrim_model_out = comb_model(emb, x_batch)
-            
+
             # Get prediction (softmax)
             pred = mlu.get_predictions(discrim_model_out)
 
@@ -214,7 +215,7 @@ def main():
             loss = criterion(discrim_model_out, y_batch)
             # Compute gradients in discrim net
             loss.backward()
-            
+
             """
             # Copy weights of discrim net fatLayer to the output of aux net
             fatLayer_weights.grad = discrim_model.hidden_1.weight.grad
@@ -241,7 +242,7 @@ def main():
         # ---Validation---
         comb_model.eval()
         discrim_model = lambda x: comb_model(emb, x)
-        
+
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
         valid_losses.append(epoch_loss)
@@ -359,6 +360,12 @@ def parse_args():
             type=int,
             default=20000,
             help='Max number of epochs. Default: %(default)i'
+            )
+
+    parser.add_argument(
+            '--param-init',
+            type=str,
+            help='File with parameters initialization'
             )
 
     return parser.parse_args()
