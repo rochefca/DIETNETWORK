@@ -2,5 +2,4 @@
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints
-EXPERIMENT_01/
 scrapwork.ipynb
