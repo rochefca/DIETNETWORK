@@ -84,6 +84,9 @@ def main():
                             args.which_fold)
     emb = emb.to(device)
     emb = emb.float()
+    emb_norm = (emb ** 2).sum(0) ** 0.5
+    emb = emb/emb_norm
+    np.savez('normed_emb.npz', emb.cpu().numpy())
 
     # Instantiate model
     # Input size
