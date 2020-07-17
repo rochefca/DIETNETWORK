@@ -30,9 +30,6 @@ class Feat_emb_net(nn.Module):
             nn.init.uniform_(self.hidden_2.weight, a=-0.02, b=0.02)
 
 
-        self.hidden_2 = nn.Linear(n_hidden_u, n_hidden_u, bias=False)
-        nn.init.uniform_(self.hidden_2.weight, a=-0.02, b=0.02)
-
     def forward(self, x):
         ze1 = self.hidden_1(x)
         ae1 = torch.tanh(ze1)
