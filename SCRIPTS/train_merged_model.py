@@ -265,6 +265,13 @@ def main():
         if patience >= max_patience:
             has_early_stoped = True
             break # exit training loop
+
+        # Anneal laerning rate
+        for param_group in optimizer.param_groups:
+            print(param_group['lr'])
+            param_group['lr'] = param_group['lr'] * 0.999
+            print(param_group['lr'])
+
         end_time = time.time()
         print('time:', end_time-start_time, flush=True)
 
