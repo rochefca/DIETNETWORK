@@ -18,7 +18,7 @@ def main():
     args = parse_args()
 
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"]="4"
+    os.environ["CUDA_VISIBLE_DEVICES"]=str(args.which_gpu)
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
     #device = torch.device("cuda")
@@ -35,6 +35,7 @@ def main():
         if device.type=='cuda':
                 torch.cuda.manual_seed(seed)
                 torch.cuda.manual_seed_all(seed)
+        print('Seed:', str(seed))
 
     # Get fold data (indexes and samples are np arrays, x,y are tensors)
     data = du.load_data(os.path.join(args.exp_path,args.dataset))
@@ -86,7 +87,8 @@ def main():
     emb = emb.float()
     emb_norm = (emb ** 2).sum(0) ** 0.5
     emb = emb/emb_norm
-    np.savez('normed_emb.npz', emb.cpu().numpy())
+    np.savez(os.path.join(args.exp_path, args.exp_name, 'normed_emb.npz'),
+             emb.cpu().numpy())
 
     # Instantiate model
     # Input size
@@ -182,6 +184,7 @@ def main():
     max_patience = args.patience
     has_early_stoped = False
 
+    total_time = 0
     for epoch in range(n_epochs):
         print('Epoch {} of {}'.format(epoch+1, n_epochs), flush=True)
         start_time = time.time()
@@ -268,11 +271,11 @@ def main():
 
         # Anneal laerning rate
         for param_group in optimizer.param_groups:
-            print(param_group['lr'])
-            param_group['lr'] = param_group['lr'] * 0.999
-            print(param_group['lr'])
+            param_group['lr'] = \
+                    param_group['lr'] * args.learning_rate_annealing
 
         end_time = time.time()
+        total_time += end_time-start_time
         print('time:', end_time-start_time, flush=True)
 
     # Finish training
@@ -283,11 +286,14 @@ def main():
     pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
     print(pred)
     print(acc)
-    np.savez(os.path.join(args.exp_path, 'final_out'),
+    print('total running time:', str(total_time))
+    out_file = 'output_fold' + str(args.which_fold)
+    np.savez(os.path.join(args.exp_path, args.exp_name, out_file),
              samples=test_set.samples,
              labels=test_set.ys.cpu(),
              pred=pred.cpu(),
              label_names=data['label_names'])
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -366,6 +372,14 @@ def parse_args():
             )
 
     parser.add_argument(
+            '--learning-rate-annealing',
+            '-lra',
+            type=float,
+            default=0.999,
+            help='Learning rate annealing. Default: %(default)i'
+            )
+
+    parser.add_argument(
             '--epochs',
             type=int,
             default=20000,
@@ -376,6 +390,13 @@ def parse_args():
             '--param-init',
             type=str,
             help='File with parameters initialization'
+            )
+
+    parser.add_argument(
+            '--which-gpu',
+            required=True,
+            type=int,
+            help='Which GPU to use for execution'
             )
 
     return parser.parse_args()
