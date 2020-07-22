@@ -111,28 +111,27 @@ def parse_args():
     parser.add_argument(
             '--exp-path',
             type=str,
-            default='../EXPERIMENT_01',
-            help='Path to folder where to put results. Default: %(default)s'
+            required=True,
+            help='Path to folder where to put results.'
             )
 
     parser.add_argument(
             '--genotypes',
             type=str,
-            default='../DATA/snps.txt',
-            help=('Path and filename of individual genotype values encoded '
-                  '0,1,2 in a tab-separated format. '
-                  'Missing values can be encoded NA, ./. or -1 '
-                  '(default: %(default)s)')
+            required=True,
+            help=('File of samples genotypes in additive-encoding '
+                  'format and tab-separated. '
+                  'Each line contains a sample id followed by the '
+                  'genotypes for every SNP. '
+                  'Missing values can be encoded NA, ./. or -1 ')
             )
 
     parser.add_argument(
             '--labels',
             type=str,
-            default='../DATA/labels.txt',
-            help=('Path and filename of individual labels. '
-                  'The first column contains the subject ids. '
-                  'The second column contains the label for each subject. '
-                  '(default: %(default)s)')
+            required=True,
+            help=('File of samples labels. Each line contains a sample '
+                  'id followed by its label in a tab-separated format.')
             )
 
     parser.add_argument(
@@ -154,7 +153,8 @@ def parse_args():
             '--seed',
             type=int,
             default=23,
-            help=('Fix seed for shuffle of data before partition into folds. '
+            help=('Seed to use for fixing the shuffle of samples '
+                  'before partitioning into folds. '
                   'Default: %(default)i')
             )
 
@@ -167,8 +167,8 @@ def parse_args():
     parser.add_argument(
             '--fold-out',
             default='folds_indexes.npz',
-            help=('Name of file that will contain data indexes of each fold '
-                  'Default: %(default)s')
+            help=('Name of file that will contain samples indexes '
+                  'of each fold. Default: %(default)s')
             )
 
     return parser.parse_args()
