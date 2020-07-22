@@ -1,6 +1,6 @@
 """
-Script to process data in a npz format and partition data into folds
-Creates dataset.npz and folds_indexes.npz
+Script to parse data into a npz format and partition data into folds
+Creates dataset.npz and folds_indexes.npz (default filenames)
 """
 import argparse
 import os
@@ -112,18 +112,18 @@ def parse_args():
             '--exp-path',
             type=str,
             required=True,
-            help='Path to folder where to put results.'
+            help=('Path to directory where returned results (parsed dataset '
+                  ' and fold indexes) will be saved.')
             )
 
     parser.add_argument(
             '--genotypes',
             type=str,
             required=True,
-            help=('File of samples genotypes in additive-encoding '
-                  'format and tab-separated. '
-                  'Each line contains a sample id followed by the '
-                  'genotypes for every SNP. '
-                  'Missing values can be encoded NA, ./. or -1 ')
+            help=('File of genotypes (additive-encoding) in tab-separated '
+                  'format. Each line contains a sample id followed '
+                  'by its genotypes for every SNP. '
+                  'Missing genotypes can be encoded NA, ./. or -1 ')
             )
 
     parser.add_argument(
@@ -131,14 +131,17 @@ def parse_args():
             type=str,
             required=True,
             help=('File of samples labels. Each line contains a sample '
-                  'id followed by its label in a tab-separated format.')
+                  'id followed by its label in tab-separated format.')
             )
 
     parser.add_argument(
             '--prediction',
             choices=['classification', 'regression'],
             default='classification',
-            help=('Type of prediction (classification or regression). '
+            help=('Type of prediction (for labels encoding) '
+                  'Classification: Labels are numerically encoded '
+                  '(one number per category). '
+                  'Regression: Labels are kept the same. '
                   'Default: %(default)s')
             )
 
@@ -161,14 +164,14 @@ def parse_args():
     parser.add_argument(
             '--data-out',
             default='dataset.npz',
-            help='Name of file for the returned dataset. Default: %(default)s'
+            help='Fileanme for the returned dataset. Default: %(default)s'
             )
 
     parser.add_argument(
             '--fold-out',
             default='folds_indexes.npz',
-            help=('Name of file that will contain samples indexes '
-                  'of each fold. Default: %(default)s')
+            help=('Filename for returned samples indexes of each fold. '
+                  'Default: %(default)s')
             )
 
     return parser.parse_args()
