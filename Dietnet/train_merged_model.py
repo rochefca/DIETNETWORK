@@ -9,9 +9,9 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-import dataset_utils as du
-import model as model
-import mainloop_utils as mlu
+import helpers.dataset_utils as du
+import helpers.model as model
+import helpers.mainloop_utils as mlu
 
 
 def main():
@@ -55,13 +55,18 @@ def main():
             x_test.to(device)
     x_train, x_valid, x_test = x_train.float(), x_valid.float(), \
             x_test.float()
+
+    y_train, y_valid, y_test = y_train.to(device), y_valid.to(device), \
+            y_test.to(device)
+
     # TO DO: y encoding returned by create_dataset.py should not be onehot
+    """
     _, y_train_idx = torch.max(y_train, dim=1)
     _, y_valid_idx = torch.max(y_valid, dim=1)
     _, y_test_idx = torch.max(y_test, dim=1)
     y_train, y_valid, y_test = y_train_idx.to(device), \
             y_valid_idx.to(device), y_test_idx.to(device)
-
+    """
     # Compute mean and sd of training set for normalization
     mus, sigmas = du.compute_norm_values(x_train)
 
@@ -305,38 +310,43 @@ def parse_args():
             '--exp-path',
             type=str,
             required=True,
-            help='Path to experiment directory where to store the results',
+            help='Path to directory of dataset, folds indexes and embedding.'
             )
 
     parser.add_argument(
             '--exp-name',
             type=str,
             required=True,
-            help='Experiment name',
+            help=('Name of directory where to save the results. '
+                  'This direcotry must be in the directory specified with '
+                  'exp-path. ')
             )
 
     parser.add_argument(
             '--dataset',
             type=str,
             default='dataset.npz',
-            help=('Filename of dataset file (which is created by '
-                  'create_dataset.py) Default: %(default)s')
+            help=('Filename of dataset returned by create_dataset.py '
+                  'The file must be in direcotry specified with exp-path '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
             '--folds-indexes',
             type=str,
             default='folds_indexes.npz',
-            help=('Filename of folds indexes file (which is '
-                  'created by create_dataset.py) Default: %(default)s')
+            help=('Filename of folds indexes returned by create_dataset.py '
+                  'The file must be in directory specified with exp-path. '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
         '--embedding',
         type=str,
         default='embedding.npz',
-        help=('Filename of embedding file (which is created by '
-              'generate_embedding.py) Default: %(default)s')
+        help=('Filename of embedding returned by generate_embedding.py '
+              'The file must be in directory specified with exp-path. '
+              'Default: %(default)s')
         )
 
     parser.add_argument(
@@ -389,7 +399,7 @@ def parse_args():
     parser.add_argument(
             '--param-init',
             type=str,
-            help='File with parameters initialization'
+            help='File of parameters initialization values'
             )
 
     parser.add_argument(

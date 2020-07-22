@@ -7,12 +7,13 @@ import os
 
 import numpy as np
 
-import dataset_utils as du
+import helpers.dataset_utils as du
 
 
 def create_dataset():
     args = parse_args()
 
+    print('Loading data')
     # Load samples, snp names and genotype values
     samples, snps, genotypes = load_snps(args.genotypes)
 
@@ -24,9 +25,10 @@ def create_dataset():
 
     # If labels are categories, one hot encode labels
     if args.prediction == 'classification' :
-        label_names, encoded_labels = onehot_encode_labels(ordered_labels)
+        label_names, encoded_labels = numeric_encode_labels(ordered_labels)
 
         # Save dataset to file
+        print('Saving dataset and fold indexes to', args.exp_path)
         np.savez(os.path.join(args.exp_path,args.data_out),
                  inputs=genotypes,
                  snp_names=snps,
@@ -36,6 +38,7 @@ def create_dataset():
 
     # If labels are not categories
     else:
+        print('Saving dataset and fold indexes to', args.exp_path)
         np.savez(os.path.join(args.exp_path, args.data_out),
                  inputs=genotypes,
                  snp_names=snp_names,
@@ -70,7 +73,7 @@ def load_snps(filename):
     genotypes = np.where(genotypes=='./.', '-1', genotypes)
     genotypes = genotypes.astype(np.int8)
 
-    print('Loaded', str(genotypes.shape[1]), 'genotypes of', str(genotypes.shape[0]), 'individuals')
+    print('Loaded', str(genotypes.shape[1]), 'genotypes of', str(genotypes.shape[0]), 'samples')
 
     return samples, snps, genotypes
 
@@ -83,6 +86,8 @@ def load_labels(filename):
 
     samples = mat[1:,0]
     labels = mat[1:,1]
+
+    print('Loaded', str(len(labels)),'labels of', str(len(samples)),'samples')
 
     return samples, labels
 
@@ -99,6 +104,14 @@ def onehot_encode_labels(labels):
     encoded_labels = np.zeros((len(labels), len(label_names)))
     for i,label in enumerate(labels):
         encoded_labels[i,np.where(label_names==label)[0][0]] = 1.0
+
+    return label_names, encoded_labels
+
+
+def numeric_encode_labels(labels):
+    label_names = np.sort(np.unique(labels))
+
+    encoded_labels = [np.where(label_names==i)[0][0] for i in labels]
 
     return label_names, encoded_labels
 
@@ -164,7 +177,7 @@ def parse_args():
     parser.add_argument(
             '--data-out',
             default='dataset.npz',
-            help='Fileanme for the returned dataset. Default: %(default)s'
+            help='Filename for the returned dataset. Default: %(default)s'
             )
 
     parser.add_argument(

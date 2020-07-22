@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 
-import dataset_utils as du
+import helpers.dataset_utils as du
 
 
 NB_POSSIBLE_GENOTYPES = 3
@@ -20,6 +20,7 @@ def generate_embedding():
 
     embedding_by_fold = []
     for fold in range(len(folds_indexes)):
+        print('Computing embedding of fold', str(fold))
         # Get fold data (x,y,samples) that are not test data
         (x, y, _) = du.get_fold_data(fold, folds_indexes, data)
 
@@ -28,10 +29,29 @@ def generate_embedding():
         embedding_by_fold.append(emb)
 
     # Save
+    print('Saving embedding to', args.exp_path)
     np.savez(os.path.join(args.exp_path,args.out), emb=embedding_by_fold)
 
 
-def compute_fold_embedding(xs, onehot_ys):
+def compute_fold_embedding(xs, ys):
+    # Total number of classes
+    nb_class = ys.max() + 1 #class 0
+
+    # Compute sum of genotypes (0-1-2) per class
+    xs = xs.transpose() # rows are snps, col are inds
+    embedding = np.zeros((xs.shape[0],nb_class*NB_POSSIBLE_GENOTYPES))
+    for c in range(nb_class):
+        # Select genotypes for samples of same class
+        class_genotypes = xs[:,ys==c]
+        nb = class_genotypes.shape[1] #nb of samples in that class
+        for genotype in range(NB_POSSIBLE_GENOTYPES):
+            col = NB_POSSIBLE_GENOTYPES*c+genotype
+            embedding[:,col] = (class_genotypes == genotype).sum(axis=1)/nb
+
+    return embedding
+
+
+def compute_fold_embedding_(xs, onehot_ys):
     ys = onehot_ys.argmax(axis=1)
 
     # Total number of classes
@@ -59,33 +79,33 @@ def parse_args():
     parser.add_argument(
             '--exp-path',
             type=str,
-            default='../EXPERIMENT_01',
-            help=('Path to experiment folder containing the dataset. '
-                  'Default: %(default)s')
+            required=True,
+            help='Path to experiment directory where to save embedding. '
             )
 
     parser.add_argument(
             '--dataset',
             type=str,
             default='dataset.npz',
-            help=('Filename of dataset (which is returned by '
-                  'create_dataset.py) Default: %(default)s')
+            help=('Filename of dataset returned by create_dataset.py '
+                  'The file must be in directory specidifed with exp-path. '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
             '--folds-indexes',
             type=str,
             default='folds_indexes.npz',
-            help=('Filename of folds indexes (which is returned by '
-                  'create_dataset.py) Default: %(default)s')
+            help=('Filename of folds indexes returned by create_dataset.py '
+                  'The file must be in directory specified with exp-path. '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
             '--out',
             type=str,
-            default='embedding',
-            help=('Name of output file that will contain the embeddings. '
-                  'Default: %(default)s')
+            default='embedding.npz',
+            help='Filename for returned embedding. Default: %(default)s'
             )
 
     return parser.parse_args()
