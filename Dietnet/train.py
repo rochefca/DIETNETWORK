@@ -9,32 +9,29 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-import dataset_utils as du
-import model as model
-import mainloop_utils as mlu
+import helpers.dataset_utils as du
+import helpers.model as model
+import helpers.mainloop_utils as mlu
 
 
 def main():
     args = parse_args()
 
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"]="5"
     print('Cuda available:', torch.cuda.is_available())
     print('Current cuda device ', torch.cuda.current_device())
-    #device = torch.device("cuda")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('device:', device)
 
     # Fix seed
-    if args.seed is not None:
-        seed = args.seed
-        torch.backends.cudnn.deterministic = True
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        #random.seed(seed)
-        if device.type=='cuda':
-                torch.cuda.manual_seed(seed)
-                torch.cuda.manual_seed_all(seed)
+    seed = args.seed
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if device.type=='cuda':
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    print('Seed:', str(seed))
 
     # Get fold data (indexes and samples are np arrays, x,y are tensors)
     data = du.load_data(os.path.join(args.exp_path,args.dataset))
@@ -54,12 +51,9 @@ def main():
             x_test.to(device)
     x_train, x_valid, x_test = x_train.float(), x_valid.float(), \
             x_test.float()
-    # TO DO: y encoding returned by create_dataset.py should not be onehot
-    _, y_train_idx = torch.max(y_train, dim=1)
-    _, y_valid_idx = torch.max(y_valid, dim=1)
-    _, y_test_idx = torch.max(y_test, dim=1)
-    y_train, y_valid, y_test = y_train_idx.to(device), \
-            y_valid_idx.to(device), y_test_idx.to(device)
+
+    y_train, y_valid, y_test = y_train.to(device), y_valid.to(device), \
+            y_test.to(device)
 
     # Compute mean and sd of training set for normalization
     mus, sigmas = du.compute_norm_values(x_train)
@@ -84,9 +78,12 @@ def main():
                             args.which_fold)
     emb = emb.to(device)
     emb = emb.float()
+
+    # Normalize embedding
     emb_norm = (emb ** 2).sum(0) ** 0.5
     emb = emb/emb_norm
-    np.savez('normed_emb.npz', emb.cpu().numpy())
+    np.savez(os.path.join(args.exp_path, args.exp_name, 'normed_emb.npz'),
+             emb.cpu().numpy())
 
     # Instantiate model
     # Input size
@@ -103,33 +100,22 @@ def main():
     print('\n***Nb features in models***')
     print('n_feats_emb:', n_feats_emb)
     print('n_feats:', n_feats)
-    # Feat embedding network
-    feat_emb_model = model.Feat_emb_net(
-            n_feats=n_feats_emb,
-            n_hidden_u=emb_n_hidden_u
-            )
-    feat_emb_model.to(device)
-    feat_emb_model_out = feat_emb_model(emb)
-    print('Feat emb. net output size:', emb.size())
-    # Discrim network
-    discrim_model = model.Discrim_net(
-            fatLayer_weights = torch.transpose(feat_emb_model_out,1,0),
-            n_feats = n_feats,
-            n_hidden1_u = discrim_n_hidden1_u,
-            n_hidden2_u = discrim_n_hidden2_u,
-            n_targets = n_targets
-            )
-    discrim_model.to(device)
-    discrim_model_out = discrim_model(train_set.xs)
-    print(discrim_model_out.size())
+
+    comb_model = model.CombinedModel(
+                 n_feats=n_feats_emb,
+                 n_hidden_u=emb_n_hidden_u,
+                 n_hidden1_u=discrim_n_hidden1_u,
+                 n_hidden2_u=discrim_n_hidden2_u,
+                 n_targets=n_targets,
+                 param_init=args.param_init,
+                 input_dropout=0.)
+    comb_model.to(device)
 
     # Loss
     criterion = nn.CrossEntropyLoss()
     # Optimizer
     lr = 0.00003
-    params = list(discrim_model.parameters()) + \
-             list(feat_emb_model.parameters())
-    optimizer = torch.optim.Adam(params, lr=lr)
+    optimizer = torch.optim.Adam(comb_model.parameters(), lr=lr)
 
     # Training loop hyper param
     n_epochs = args.epochs
@@ -150,6 +136,10 @@ def main():
     valid_losses = []
     valid_acc = []
 
+    # this is the discriminative model!
+    comb_model.eval()
+    discrim_model = lambda x: comb_model(emb, x)
+
     # Monitoring: validation baseline
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
                                        discrim_model, criterion)
@@ -160,28 +150,13 @@ def main():
     max_patience = args.patience
     has_early_stoped = False
 
-    print('***Model params before optimisation***')
-    all_params = []
-    print('Aux net:')
-    for name,param in feat_emb_model.state_dict().items():
-        print(name, param, param.size())
-        all_params.append(param.cpu().numpy())
-
-    print('Main net:')
-    for name,param in discrim_model.state_dict().items():
-        print(name, param, param.size())
-        all_params.append(param.cpu().numpy())
-
-    # Save params init values
-    np.savez('params_init_values.npz', np.array(all_params))
-
+    total_time = 0
     for epoch in range(n_epochs):
         print('Epoch {} of {}'.format(epoch+1, n_epochs), flush=True)
         start_time = time.time()
 
         # ---Training---
-        feat_emb_model.train()
-        discrim_model.train()
+        comb_model.train()
 
         # Monitoring: Minibatch loss and accuracy
         train_minibatch_mean_losses = []
@@ -189,12 +164,10 @@ def main():
 
         for x_batch, y_batch, _ in train_generator:
             optimizer.zero_grad()
-            # Forward pass in aux net
-            feat_emb_model_out = feat_emb_model(emb)
-            # Forward pass in discrim net
-            fatLayer_weights = torch.transpose(feat_emb_model_out,1,0)
-            discrim_model.hidden_1.weight.data = fatLayer_weights
-            discrim_model_out = discrim_model(x_batch)
+
+            # Forward pass
+            discrim_model_out = comb_model(emb, x_batch)
+
             # Get prediction (softmax)
             pred = mlu.get_predictions(discrim_model_out)
 
@@ -202,10 +175,6 @@ def main():
             loss = criterion(discrim_model_out, y_batch)
             # Compute gradients in discrim net
             loss.backward()
-            # Copy weights of discrim net fatLayer to the output of aux net
-            fatLayer_weights.grad = discrim_model.hidden_1.weight.grad
-            # Compute gradients in feat. emb net
-            torch.autograd.backward(fatLayer_weights, fatLayer_weights.grad)
 
             # Optim
             optimizer.step()
@@ -224,6 +193,9 @@ def main():
         print('train loss:', epoch_loss, 'train acc:', epoch_acc, flush=True)
 
         # ---Validation---
+        comb_model.eval()
+        discrim_model = lambda x: comb_model(emb, x)
+
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
         valid_losses.append(epoch_loss)
@@ -243,7 +215,14 @@ def main():
         if patience >= max_patience:
             has_early_stoped = True
             break # exit training loop
+
+        # Anneal laerning rate
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = \
+                    param_group['lr'] * args.learning_rate_annealing
+
         end_time = time.time()
+        total_time += end_time-start_time
         print('time:', end_time-start_time, flush=True)
 
     # Finish training
@@ -254,11 +233,14 @@ def main():
     pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
     print(pred)
     print(acc)
-    np.savez(os.path.join(args.exp_path, 'final_out'),
+    print('total running time:', str(total_time))
+    out_file = 'output_fold' + str(args.which_fold)
+    np.savez(os.path.join(args.exp_path, args.exp_name, out_file),
              samples=test_set.samples,
              labels=test_set.ys.cpu(),
              pred=pred.cpu(),
              label_names=data['label_names'])
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -270,38 +252,43 @@ def parse_args():
             '--exp-path',
             type=str,
             required=True,
-            help='Path to experiment directory where to store the results',
+            help='Path to directory of dataset, folds indexes and embedding.'
             )
 
     parser.add_argument(
             '--exp-name',
             type=str,
             required=True,
-            help='Experiment name',
+            help=('Name of directory where to save the results. '
+                  'This direcotry must be in the directory specified with '
+                  'exp-path. ')
             )
 
     parser.add_argument(
             '--dataset',
             type=str,
             default='dataset.npz',
-            help=('Filename of dataset file (which is created by '
-                  'create_dataset.py) Default: %(default)s')
+            help=('Filename of dataset returned by create_dataset.py '
+                  'The file must be in direcotry specified with exp-path '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
             '--folds-indexes',
             type=str,
             default='folds_indexes.npz',
-            help=('Filename of folds indexes file (which is '
-                  'created by create_dataset.py) Default: %(default)s')
+            help=('Filename of folds indexes returned by create_dataset.py '
+                  'The file must be in directory specified with exp-path. '
+                  'Default: %(default)s')
             )
 
     parser.add_argument(
         '--embedding',
         type=str,
         default='embedding.npz',
-        help=('Filename of embedding file (which is created by '
-              'generate_embedding.py) Default: %(default)s')
+        help=('Filename of embedding returned by generate_embedding.py '
+              'The file must be in directory specified with exp-path. '
+              'Default: %(default)s')
         )
 
     parser.add_argument(
@@ -320,6 +307,7 @@ def parse_args():
                   'and 25%% of data for validation. Default: %(default).2f')
             )
 
+    parser.add_argument
     parser.add_argument(
             '--seed',
             type=int,
@@ -337,10 +325,24 @@ def parse_args():
             )
 
     parser.add_argument(
+            '--learning-rate-annealing',
+            '-lra',
+            type=float,
+            default=0.999,
+            help='Learning rate annealing. Default: %(default)i'
+            )
+
+    parser.add_argument(
             '--epochs',
             type=int,
             default=20000,
             help='Max number of epochs. Default: %(default)i'
+            )
+
+    parser.add_argument(
+            '--param-init',
+            type=str,
+            help='File of parameters initialization values'
             )
 
     return parser.parse_args()
