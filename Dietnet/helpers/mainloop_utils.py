@@ -5,8 +5,6 @@ import torch.nn.functional as F
 
 
 def eval_step(valid_generator, set_size, discrim_model, criterion):
-    #discrim_model.eval()
-
     valid_minibatch_mean_losses = []
     valid_minibatch_n_right = [] # nb of good classifications
 
@@ -15,7 +13,7 @@ def eval_step(valid_generator, set_size, discrim_model, criterion):
         discrim_model_out = discrim_model(x_batch)
 
         # Predictions
-        pred = get_predictions(discrim_model_out)
+        _, pred = get_predictions(discrim_model_out)
 
         # Loss
         loss = criterion(discrim_model_out, y_batch)
@@ -33,10 +31,10 @@ def eval_step(valid_generator, set_size, discrim_model, criterion):
 
 def get_predictions(model_output):
     with torch.no_grad():
-        yhat = F.softmax(model_output, dim=1)
-        _, pred = torch.max(yhat, dim=1)
+        score = F.softmax(model_output, dim=1)
+        _, pred = torch.max(score, dim=1)
 
-    return pred
+    return score, pred
 
 
 def compute_accuracy(n_right, set_size):
@@ -55,8 +53,6 @@ def has_improved(best_acc, actual_acc, min_loss, actual_loss):
 
 
 def test(test_generator, set_size, discrim_model):
-    #discrim_model.eval()
-
     test_minibatch_n_right = [] # nb of good classifications in a minibatch
 
     for i, (x_batch, y_batch, samples) in enumerate(test_generator):
@@ -64,11 +60,13 @@ def test(test_generator, set_size, discrim_model):
         discrim_model_out = discrim_model(x_batch)
 
         # Predictions
-        pred = get_predictions(discrim_model_out)
+        score, pred = get_predictions(discrim_model_out)
         if i == 0:
             test_pred = pred
+            test_score = score
         else:
             test_pred = torch.cat((test_pred,pred), dim=-1)
+            test_score = torch.cat((test_score,score), dim=0)
 
         # Nb of good classifications for the minibatch
         test_minibatch_n_right.append(((y_batch - pred) == 0).sum().item())
@@ -76,4 +74,4 @@ def test(test_generator, set_size, discrim_model):
     # Total accuracy
     test_acc = compute_accuracy(test_minibatch_n_right, set_size)
 
-    return test_pred, test_acc
+    return test_score, test_pred, test_acc

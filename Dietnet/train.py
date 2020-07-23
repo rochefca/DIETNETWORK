@@ -12,10 +12,17 @@ import torch.nn.functional as F
 import helpers.dataset_utils as du
 import helpers.model as model
 import helpers.mainloop_utils as mlu
+import helpers.log_utils as lu
 
 
 def main():
     args = parse_args()
+
+    # Directory to save experiment info
+    out_dir = lu.create_out_dir(args.exp_path, args.exp_name, args.which_fold)
+
+    # Save experiment parameters
+    lu.save_exp_params(out_dir, args)
 
     # Set GPU
     print('Cuda available:', torch.cuda.is_available())
@@ -82,8 +89,6 @@ def main():
     # Normalize embedding
     emb_norm = (emb ** 2).sum(0) ** 0.5
     emb = emb/emb_norm
-    np.savez(os.path.join(args.exp_path, args.exp_name, 'normed_emb.npz'),
-             emb.cpu().numpy())
 
     # Instantiate model
     # Input size
@@ -169,7 +174,7 @@ def main():
             discrim_model_out = comb_model(emb, x_batch)
 
             # Get prediction (softmax)
-            pred = mlu.get_predictions(discrim_model_out)
+            _, pred = mlu.get_predictions(discrim_model_out)
 
             # Compute loss
             loss = criterion(discrim_model_out, y_batch)
@@ -179,11 +184,11 @@ def main():
             # Optim
             optimizer.step()
 
-            # Minibatch monitoring
+            # Monitoring: Minibatch
             train_minibatch_mean_losses.append(loss.item())
             train_minibatch_n_right.append(((y_batch - pred) ==0).sum().item())
 
-        # Epoch monitoring
+        # Monitoring: Epoch
         epoch_loss = np.array(train_minibatch_mean_losses).mean()
         train_losses.append(epoch_loss)
 
@@ -227,19 +232,29 @@ def main():
 
     # Finish training
     print('Early stoping:', has_early_stoped)
-    # TO DO : SAVE MODEL PARAMS
+
+    # Save model parameters (for later inference)
+    lu.save_model_params(out_dir, comb_model)
+
     # ---Test---
-    print(test_set.ys)
-    pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
-    print(pred)
-    print(acc)
+    score, pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
+    print('Final accuracy:', str(acc))
     print('total running time:', str(total_time))
-    out_file = 'output_fold' + str(args.which_fold)
-    np.savez(os.path.join(args.exp_path, args.exp_name, out_file),
-             samples=test_set.samples,
-             labels=test_set.ys.cpu(),
-             pred=pred.cpu(),
-             label_names=data['label_names'])
+
+    # Save results
+    lu.save_results(out_dir,
+                    test_set.samples,
+                    test_set.ys,
+                    data['label_names'],
+                    score, pred)
+
+    # Save additional data
+    lu.save_additional_data(out_dir,
+                            train_set.samples, valid_set.samples,
+                            test_set.samples, test_set.ys,
+                            pred, score,
+                            data['label_names'], data['snp_names'],
+                            mus, sigmas)
 
 
 def parse_args():
@@ -307,7 +322,6 @@ def parse_args():
                   'and 25%% of data for validation. Default: %(default).2f')
             )
 
-    parser.add_argument
     parser.add_argument(
             '--seed',
             type=int,
