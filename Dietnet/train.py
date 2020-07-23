@@ -114,7 +114,7 @@ def main():
     # Loss
     criterion = nn.CrossEntropyLoss()
     # Optimizer
-    lr = 0.00003
+    lr = args.learning_rate
     optimizer = torch.optim.Adam(comb_model.parameters(), lr=lr)
 
     # Training loop hyper param
@@ -325,11 +325,19 @@ def parse_args():
             )
 
     parser.add_argument(
+            '--learning-rate',
+            '-lr',
+            type=float,
+            default=0.00003,
+            help='Learning rate. Default: %(default)f'
+            )
+
+    parser.add_argument(
             '--learning-rate-annealing',
             '-lra',
             type=float,
             default=0.999,
-            help='Learning rate annealing. Default: %(default)i'
+            help='Learning rate annealing. Default: %(default)f'
             )
 
     parser.add_argument(
