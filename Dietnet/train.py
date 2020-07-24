@@ -102,6 +102,10 @@ def main():
     n_targets = max(torch.max(train_set.ys).item(),
                     torch.max(valid_set.ys).item(),
                     torch.max(test_set.ys).item()) + 1 #0-based encoding
+    
+    #import pdb
+    #pdb.set_trace()
+
     print('\n***Nb features in models***')
     print('n_feats_emb:', n_feats_emb)
     print('n_feats:', n_feats)
@@ -255,6 +259,13 @@ def main():
                             pred, score,
                             data['label_names'], data['snp_names'],
                             mus, sigmas)
+    
+    # Get attributions
+    if args.save_attributions:
+        comb_model.eval().cpu() # send model to cpu for attribution computation
+        discrim_model = lambda x: comb_model(emb.cpu(), x) # recreate discrim_model, this time on cpu
+        mlu.get_attributions(test_generator, len(test_set), discrim_model, filename=os.path.join(out_dir, 'attrs.h5'))
+        print('saved attributions to: {}'.format(os.path.join(out_dir, 'attrs.h5')))
 
 
 def parse_args():
@@ -365,6 +376,12 @@ def parse_args():
             '--param-init',
             type=str,
             help='File of parameters initialization values'
+            )
+
+    parser.add_argument(
+            '--save_attributions',
+            help='Compute attributions (Integrated Gradients)',
+            action='store_true'
             )
 
     return parser.parse_args()
