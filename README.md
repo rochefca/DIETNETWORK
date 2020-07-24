@@ -1,6 +1,11 @@
 # DIETNETWORK
+<<<<<<< HEAD
 Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
 ## Training pipeline
+=======
+Pytorch implementation of DietNetwork
+## Code workflow
+>>>>>>> f35a489... Update README.md
 ![code_wf](Images/dn_workflow.png)
 ## Scripts
 ### Main scripts
