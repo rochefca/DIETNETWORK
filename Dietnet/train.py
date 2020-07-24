@@ -139,6 +139,9 @@ def main():
                                 batch_size=batch_size,
                                 shuffle=False)
 
+    # Save model summary
+    lu.save_model_summary(out_dir, comb_model, criterion, optimizer)
+
     # Monitoring: Epoch loss and accuracy
     train_losses = []
     train_acc = []
