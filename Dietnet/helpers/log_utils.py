@@ -1,11 +1,11 @@
 import os
 import sys
+from pathlib import Path
 import inspect
 
 import numpy as np
 
 import torch
-
 
 def create_out_dir(exp_path, exp_name, fold):
     dir_name = exp_name + '_fold' + str(fold)
@@ -14,7 +14,8 @@ def create_out_dir(exp_path, exp_name, fold):
     # Create directory
     if not os.path.isdir(dir_path):
         try:
-            os.mkdir(dir_path)
+            Path(dir_path).mkdir(parents=True, exist_ok=True)
+            #os.mkdir(dir_path)
         except OSError:
             print('Creation of directory %s failed' % dir_path)
             sys.exit(1)
