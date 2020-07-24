@@ -1,5 +1,7 @@
 # DIETNETWORK
 Pytorch implementation of DietNetwork
+## Code workflow
+![code_wf](Images/dn_workflow.png)
 ## Scripts
 ### Main scripts
 1. **create_dataset.py** : Create dataset and partition data into folds. The script takes snps.txt and labels.txt files as input to create dataset.npz and folds_indexes.npz

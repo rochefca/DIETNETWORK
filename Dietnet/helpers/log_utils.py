@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import inspect
 
 import numpy as np
 
@@ -35,6 +36,50 @@ def save_exp_params(out_dir, args):
     with open(os.path.join(out_dir, filename), 'w') as f:
         for k,v in d.items():
             f.write(k + ':' + str(v) + '\n')
+
+
+def save_model_summary(out_dir, model, criterion, optimizer):
+    filename = 'model_summary.log'
+
+    print('Saving model architecture summary to %s' % os.path.join(
+        out_dir,
+        filename)
+        )
+
+    text = '*'*50
+    text += '\nAuxiliary network (feature embedding network):\n'
+    text += '*'*50 + '\n'
+    text += str(model.feat_emb)
+    text += '\nForward function of auxiliary net:\n'
+    text += inspect.getsource(model.feat_emb.forward)
+    text += '\n' + '-'*80
+
+    text += '\n' + '*'*40
+    text += '\nMain network (discriminative network):\n'
+    text += '*'*40 + '\n'
+    text += str(model.disc_net)
+    text += '\nForward function of main net:\n'
+    text += inspect.getsource(model.disc_net.forward)
+    bias = False if model.disc_net.fat_bias is None else True
+    text += '\n --> Fat layer has bias param:' + str(bias) + '\n'
+    text += '\n' + '-'*80
+
+    text += '\n' + '*'*20
+    text += '\nCombined models:\n'
+    text += '*'*20 + '\n'
+    text += str(model)
+    text += '\nForward function of combined models:\n'
+    text += inspect.getsource(model.disc_net.forward)
+
+    text += '\n' + '-'*80
+    text += '\n' + '*'*20
+    text += '\nLoss and Optimizer\n'
+    text += '*'*20 + '\n'
+    text += 'Loss:\n' + str(criterion)
+    text += '\n\nOptimizer:\n' + str(optimizer)
+
+    with open(os.path.join(out_dir, filename), 'w') as f:
+        f.write(text)
 
 
 def save_model_params(out_dir, model):
