@@ -15,7 +15,7 @@ def create_dataset():
 
     print('Loading data')
     # Load samples, snp names and genotype values
-    samples, snps, genotypes = load_snps(args.genotypes)
+    samples, snps, genotypes = du.load_genotypes(args.genotypes)
 
     # Load samples with their labels
     samples_in_labels, labels = load_labels(args.labels)
@@ -52,30 +52,6 @@ def create_dataset():
     np.savez(os.path.join(args.exp_path,args.fold_out),
              folds_indexes=partition,
              seed=np.array([args.seed]))
-
-
-def load_snps(filename):
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-
-    mat = np.array([l.strip('\n').split('\t') for l in lines])
-
-    # SNP ids
-    snps = mat[0,1:]
-
-    # Sample ids
-    samples = mat[1:,0]
-
-    # Genotype values
-    genotypes = mat[1:,1:]
-    # Replace missing genotype values (NA or ./.) with -1
-    genotypes = np.where(genotypes=='NA', '-1', genotypes)
-    genotypes = np.where(genotypes=='./.', '-1', genotypes)
-    genotypes = genotypes.astype(np.int8)
-
-    print('Loaded', str(genotypes.shape[1]), 'genotypes of', str(genotypes.shape[0]), 'samples')
-
-    return samples, snps, genotypes
 
 
 def load_labels(filename):
