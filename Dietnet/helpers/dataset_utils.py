@@ -64,6 +64,35 @@ def split(indices, split_ratio, seed):
     return train_indexes, valid_indexes
 
 
+def load_genotypes(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    # SNP ids
+    snps = np.array([i.strip() for i in lines[0].split('\t')[1:]])
+
+    # Sample ids
+    samples = np.array([i.split('\t')[0] for i in lines[1:]])
+
+    # Genotypes
+    genotypes = np.empty((len(samples), len(snps)), dtype="int8")
+    for i,line in enumerate(lines[1:]):
+        for j,genotype in enumerate(line.split('\t')[1:]):
+            if genotype.strip() == './.' or genotype.strip() == 'NA':
+                genotype = -1
+            else:
+                genotype = int(genotype.strip())
+            genotypes[i,j] = genotype
+
+        # Log number of parsed samples
+        if i % 100 == 0 and i != 0:
+            print('Loaded', i, 'out of', len(samples), 'samples')
+
+    print('Loaded', str(genotypes.shape[1]), 'genotypes of', str(genotypes.shape[0]), 'samples')
+
+    return samples, snps, genotypes
+
+
 def load_data(filename):
     data = np.load(filename)
 
