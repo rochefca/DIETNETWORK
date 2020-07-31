@@ -4,7 +4,7 @@ __pycache__/
 
 # Private exp files
 .ipynb_checkpoints
-scrapwork.ipynb
+*.ipynb
 run.sh
 
 # Not needed anymore folders (fake data used to debug)
