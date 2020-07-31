@@ -54,11 +54,7 @@ def create_dataset():
              seed=np.array([args.seed]))
 
 
-<<<<<<< HEAD
 def _load_labels(filename):
-=======
-def load_labels(filename):
->>>>>>> bacc8e9... Load genotypes as int instead of str because of memory issue
     with open(filename, 'r') as f:
         lines = f.readlines()
 
