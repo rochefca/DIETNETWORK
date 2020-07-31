@@ -1,6 +1,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+
+# Private exp files
 .ipynb_checkpoints
 scrapwork.ipynb
 run.sh
+
+# Not needed anymore folders (fake data used to debug)
+DATA
+EXPERIMENT_01
