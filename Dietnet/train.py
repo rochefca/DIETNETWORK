@@ -13,6 +13,7 @@ import helpers.dataset_utils as du
 import helpers.model as model
 import helpers.mainloop_utils as mlu
 import helpers.log_utils as lu
+import Interpretability.attribution_manager as am
 
 
 def main():
@@ -265,6 +266,42 @@ def main():
                             pred, score,
                             data['label_names'], data['snp_names'],
                             mus, sigmas)
+<<<<<<< HEAD
+=======
+
+    # can clear out stuff to make space on GPU for attribution computation!
+    del data, folds_indexes, train_indexes, valid_indexes, \
+    samples_train, samples_valid, x_train, x_valid, y_train, y_valid, \
+    mus, sigmas, x_train_normed, x_valid_normed, \
+    train_set, valid_set, train_generator, valid_generator
+
+    torch.cuda.empty_cache()
+    
+    """
+    import gc
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                print(type(obj), obj.size())
+        except:
+            pass
+    
+    import pdb
+    pdb.set_trace()
+    """
+
+    # Get attributions
+    if args.save_attributions:
+        comb_model.eval()
+        discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
+        attr_manager = am.AttributionManager(discrim_model)
+        attr_manager.get_attributions(test_generator, filename=os.path.join(out_dir, 'attrs.h5'), device=device)
+        attr_avg = attr_manager.get_attribution_average(x_test, 
+                                                        y_test.max().item()+1, 
+                                                        os.path.join(out_dir, 'attrs.h5'),
+                                                        device)
+        np.save(file=os.path.join(out_dir, 'attrs_avg.h5'), arr=attr_avg.cpu())
+>>>>>>> fe5ad68... added integrated gradients and averaging (across populations)
 
 
 def parse_args():
