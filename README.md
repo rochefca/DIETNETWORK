@@ -1,5 +1,5 @@
 # DIETNETWORK
-Pytorch implementation of DietNetwork
+Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
 ## Training pipeline
 ![code_wf](Images/dn_workflow.png)
 ## Scripts
