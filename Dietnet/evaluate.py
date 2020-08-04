@@ -70,6 +70,7 @@ def confusion_matrix_external_set(args):
     true_label_names = sorted(set(ordered_labels))
     prediction_names = sorted(set(data[0]['label_names']))
 
+
     print('Samples labels list:', true_label_names)
     print('Samples prediction list:', prediction_names)
 

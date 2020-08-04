@@ -93,7 +93,6 @@ def load_genotypes(filename):
     return samples, snps, genotypes
 
 
-
 def load_labels(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
