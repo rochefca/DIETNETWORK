@@ -103,7 +103,7 @@ def main():
     n_targets = max(torch.max(train_set.ys).item(),
                     torch.max(valid_set.ys).item(),
                     torch.max(test_set.ys).item()) + 1 #0-based encoding
-    
+
     #import pdb
     #pdb.set_trace()
 
@@ -118,7 +118,7 @@ def main():
                  n_hidden2_u=discrim_n_hidden2_u,
                  n_targets=n_targets,
                  param_init=args.param_init,
-                 input_dropout=0.)
+                 input_dropout=args.input_dropout)
     comb_model.to(device)
 
     # Loss
@@ -272,7 +272,7 @@ def main():
     train_set, valid_set, train_generator, valid_generator
 
     torch.cuda.empty_cache()
-    
+
     """
     import gc
     for obj in gc.get_objects():
@@ -281,7 +281,7 @@ def main():
                 print(type(obj), obj.size())
         except:
             pass
-    
+
     import pdb
     pdb.set_trace()
     """
@@ -292,8 +292,8 @@ def main():
         discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
         attr_manager = am.AttributionManager(discrim_model)
         attr_manager.get_attributions(test_generator, filename=os.path.join(out_dir, 'attrs.h5'), device=device)
-        attr_avg = attr_manager.get_attribution_average(x_test, 
-                                                        y_test.max().item()+1, 
+        attr_avg = attr_manager.get_attribution_average(x_test,
+                                                        y_test.max().item()+1,
                                                         os.path.join(out_dir, 'attrs.h5'),
                                                         device)
         np.save(file=os.path.join(out_dir, 'attrs_avg.h5'), arr=attr_avg.cpu())
@@ -401,6 +401,15 @@ def parse_args():
             type=int,
             default=20000,
             help='Max number of epochs. Default: %(default)i'
+            )
+
+    parser.add_argument(
+            '--input-dropout',
+            type=float,
+            default=0.0,
+            help=('Input dropout. The number, between 0 and 1, indicates '
+                  'the probability of an element to be zeroed. '
+                  'Default: %(default)f')
             )
 
     parser.add_argument(
