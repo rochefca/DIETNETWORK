@@ -67,8 +67,8 @@ def confusion_matrix_external_set(args):
                        'Prediction': predictions,
                        'Label': ordered_labels})
     # Confusion matrix
-    true_label_names = sorted(set(df['Label']))
-    prediction_names = sorted(set(df['Prediction']))
+    true_label_names = sorted(set(ordered_labels))
+    prediction_names = sorted(set(data[0]['label_names']))
 
     print('Samples labels list:', true_label_names)
     print('Samples prediction list:', prediction_names)
@@ -88,7 +88,7 @@ def confusion_matrix_external_set(args):
     np.savez(PurePath(out_dir, filename),
              matrix=mat,
              label_names=np.array(true_label_names),
-             prediction_names=np.array(predictions))
+             prediction_names=np.array(prediction_names))
     print('Saved confusion matrix to', PurePath(out_dir, filename)),
 
     # Plot matrix
