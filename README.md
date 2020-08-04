@@ -1,38 +1,41 @@
 # DIETNETWORK
 Pytorch implementation of DietNetwork
-## Code workflow
+## Training pipeline
 ![code_wf](Images/dn_workflow.png)
 ## Scripts
 ### Main scripts
 1. **create_dataset.py** : Create dataset and partition data into folds. The script takes snps.txt and labels.txt files as input to create dataset.npz and folds_indexes.npz
 2. **generate_embedding.py** : Takes dataset.npz and folds_indexes.npz files created in the previous step and computes the embedding (genotypic frequency) of every fold. Embedding of each fold is saved in embedding.npz
-3. **train.py** : Whole training process. Data preprocessing for discrim net: 
-  (i) Feature mean is computed on the training set
-  (ii) Missing values are replaced in train and valid sets with the feature mean
-  (iii) Features are normalized using the feature mean computed in (i) and a sd computed on the training set. The training loop monitors the accuracy on the validation set for early stopping.
-  
+  - Missing values are -1 and are not included in the computation of genotypic frequencies embedding
+  - Embedding values are computed on train and valid sets
+3. **train.py** : Whole training process. The data is divided in train/valid and test sets. Performance is reported on the test set.
+  - Data preprocessing of auxiliary net : Square Euclidean distance normalization
+  - Data preprocessing of discrim net: Missing values are replaced by the mean of the feature computed on training set. Data normalization (standardization) using mean and sd computed on training set.
+4. **test_external_dataset.py** : Test model on an external set, ie on individuals that are not part of dataset.npz
+5. **evaluate.py** : Utilities to visualize the model performance such as confusion matrix
   
 ### Helper scripts
 - **dataset_utils.py** : Data related functions (shuffle, partition, split, get_fold_data, replace_missing_values, normalize, ...)
 - **model.py** : Model definition of feature embedding (auxiliary) and discriminative (main) networks.
 - **mainloop_utils.py** : Function used in the training loop (get_predictions, compute_accuracy, eval_step, ...)
-- **preprocess_data.py** : This script will be removed eventually. Shuffles data, partition data into folds, creates datasets by fold (train, valid, test) and replace missing values with feature means. Dataset for each fold are saved in dataset_by_fold.npz
-
+- **log_utils.py** : Utilities to save data (model summary and parameters, experiment parameters, predictions, etc.)
+- **test_utils.py** : Utilities related to testing a trained model on an external set
 
 ## Files
-- **DATA/snps.txt** : File of genotypes, additive encoding.
-- **DATA/labels.txt** : File of samples and their label.
-- **EXPERIMENT_01/dataset.npz** : Global data parsed from snps.txt and labels.txt.
-- **EXPERIMENT_01/folds_indexes.npz** : Array index (arrays are in dataset.npz) for each fold. The indexes are those of the data points to use as test.
+### Raw files provided by user
+- **snps.txt** : File of genotypes in additive encoding format and tab-separated.
+- **labels.txt** : File of samples and their label.
+### Files created before training
+- **dataset.npz** : Dataset created from the parsed snps.txt and labels.txt files.
+- **folds_indexes.npz** : Array index (arrays are in dataset.npz) for each fold. The indexes are those of the data points to use as test.
+- **embedding.npz** : Computed embeddings of each fold.
+### Files returned after training
+- **exp_params.log** : Experiment parameters (fixed seed, learning rate, number of epochs, etc.)
+- **model_summary.log** : Model information (number of hidden layers, number of neurons in each layers, activation functions, etc.)
+- **model_params.pt** : Model parameters of final trained model
+- **model_predictions.npz**: Scores and predictions returned by the trained model for test samples
+- **additional_data.npz** : Some more information used at training time (mus and sigmas values used for normalization, feature names, label names, training samples ids, validation samples ids, etc.)
 
-
-## Data preprocessing
-### Auxiliary net
-- Missing values are -1 and are not included in the computation of genotypic frequencies
-- Embedding values are computed on train and valid sets
-### Main net
-- Missing values are replaced in train, valid and test sets by the feature mean of the training set
-- Features of train, valid and test sets are normalized using mean and sd computed on training set
 ## To do
 - [x] Embedding
 - [x] Data preprocessing : Missing values
@@ -43,9 +46,15 @@ Pytorch implementation of DietNetwork
 - [x] Loss/Accuracy monitoring of train and valid
 - [x] Early stopping
 - [x] Test for in-sample data
-- [ ] Test for out-of-sample data
-- [ ] Save model params, results
+- [ ] Test in-sample with missing values rates
+- [x] Test for out-of-sample data
+- [x] Save model params, results
+
 ## Packages
 - Python 3.6
-- Pytorch installation on kepler :
-pip install torch==1.5.0+cu101 torchvision==0.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+- torch 1.5.0+cu101
+- numpy 1.19.1
+- pandas 1.1.0
+- matplotlib 3.2.1
+- captum 0.2.0 (https://captum.ai/)
+- h5py 2.10.0
