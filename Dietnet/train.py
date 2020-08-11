@@ -119,6 +119,8 @@ def main():
                  n_targets=n_targets,
                  param_init=args.param_init,
                  input_dropout=0.)
+
+    #  Note: runs script in single GPU mode only!
     comb_model.to(device)
 
     # Loss
@@ -151,13 +153,14 @@ def main():
     valid_acc = []
 
     # this is the discriminative model!
-    comb_model.eval()
-    discrim_model = lambda x: comb_model(emb, x)
+    discrim_model = mlu.create_eval_model(comb_model, emb, device)
 
     # Monitoring: validation baseline
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
                                        discrim_model, criterion)
     print('baseline loss:',min_loss, 'baseline acc:', best_acc)
+    del discrim_model
+    torch.cuda.empty_cache()
 
     # Monitoring: Nb epoch without improvement after which to stop training
     patience = 0
@@ -207,11 +210,13 @@ def main():
         print('train loss:', epoch_loss, 'train acc:', epoch_acc, flush=True)
 
         # ---Validation---
-        comb_model.eval()
-        discrim_model = lambda x: comb_model(emb, x)
+        discrim_model = mlu.create_eval_model(comb_model, emb, device)
 
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
+        del discrim_model
+        torch.cuda.empty_cache()
+
         valid_losses.append(epoch_loss)
         valid_acc.append(epoch_acc)
         print('valid loss:', epoch_loss, 'valid acc:', epoch_acc,flush=True)
@@ -246,7 +251,13 @@ def main():
     lu.save_model_params(out_dir, comb_model)
 
     # ---Test---
+    discrim_model = mlu.create_eval_model(comb_model, emb, device)
+
     score, pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
+
+    del discrim_model
+    torch.cuda.empty_cache()
+
     print('Final accuracy:', str(acc))
     print('total running time:', str(total_time))
 
@@ -288,15 +299,19 @@ def main():
 
     # Get attributions
     if args.save_attributions:
-        comb_model.eval()
-        discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
-        attr_manager = am.AttributionManager(discrim_model)
-        attr_manager.get_attributions(test_generator, filename=os.path.join(out_dir, 'attrs.h5'), device=device)
-        attr_avg = attr_manager.get_attribution_average(x_test, 
-                                                        y_test.max().item()+1, 
-                                                        os.path.join(out_dir, 'attrs.h5'),
-                                                        device)
-        np.save(file=os.path.join(out_dir, 'attrs_avg.h5'), arr=attr_avg.cpu())
+
+        discrim_model = mlu.create_eval_model_multi_gpu(comb_model, emb, device)
+        del comb_model, emb
+        torch.cuda.empty_cache()
+
+        attr_manager = am.AttributionManager(discrim_model, attr_type='int_grad', backend='captum', device=device)
+        attr_manager.make_attribution_files(test_generator, 
+                                            x_test,
+                                            y_test.max().item()+1,
+                                            os.path.join(out_dir, 'attrs.h5'), 
+                                            os.path.join(out_dir, 'attrs_avg.h5'), 
+                                            device=device,
+                                            compute_subset=False)
 
 
 def parse_args():
