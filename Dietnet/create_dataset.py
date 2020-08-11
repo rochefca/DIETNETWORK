@@ -18,10 +18,10 @@ def create_dataset():
     samples, snps, genotypes = du.load_genotypes(args.genotypes)
 
     # Load samples with their labels
-    samples_in_labels, labels = load_labels(args.labels)
+    samples_in_labels, labels = du.load_labels(args.labels)
 
     # Ensure given samples are in same order in genotypes and labels files
-    ordered_labels = order_labels(samples, samples_in_labels, labels)
+    ordered_labels = du.order_labels(samples, samples_in_labels, labels)
 
     # If labels are categories, one hot encode labels
     if args.prediction == 'classification' :
@@ -54,7 +54,7 @@ def create_dataset():
              seed=np.array([args.seed]))
 
 
-def load_labels(filename):
+def _load_labels(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
 
@@ -68,7 +68,7 @@ def load_labels(filename):
     return samples, labels
 
 
-def order_labels(samples, samples_in_labels, labels):
+def _order_labels(samples, samples_in_labels, labels):
     idx = [np.where(samples_in_labels == s)[0][0] for s in samples]
 
     return np.array([labels[i] for i in idx])

@@ -1,7 +1,10 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+
+# Private exp files
 .ipynb_checkpoints
 *.ipynb
 run.sh
 make_attributions_run.sh
+

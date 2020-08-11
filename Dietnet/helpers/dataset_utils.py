@@ -93,6 +93,26 @@ def load_genotypes(filename):
     return samples, snps, genotypes
 
 
+def load_labels(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    mat = np.array([l.strip('\n').split('\t') for l in lines])
+
+    samples = mat[1:,0]
+    labels = mat[1:,1]
+
+    print('Loaded', str(len(labels)),'labels of', str(len(samples)),'samples')
+
+    return samples, labels
+
+
+def order_labels(samples, samples_in_labels, labels):
+    idx = [np.where(samples_in_labels == s)[0][0] for s in samples]
+
+    return np.array([labels[i] for i in idx])
+
+
 def load_data(filename):
     data = np.load(filename)
 
