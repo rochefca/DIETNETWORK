@@ -118,13 +118,9 @@ def main():
                  n_hidden2_u=discrim_n_hidden2_u,
                  n_targets=n_targets,
                  param_init=args.param_init,
-<<<<<<< HEAD
-                 input_dropout=0.)
+                 input_dropout=args.input_dropout)
 
     #  Note: runs script in single GPU mode only!
-=======
-                 input_dropout=args.input_dropout)
->>>>>>> master
     comb_model.to(device)
 
     # Loss
@@ -303,8 +299,6 @@ def main():
 
     # Get attributions
     if args.save_attributions:
-<<<<<<< HEAD
-
         discrim_model = mlu.create_eval_model_multi_gpu(comb_model, emb, device)
         del comb_model, emb
         torch.cuda.empty_cache()
@@ -317,18 +311,6 @@ def main():
                                             os.path.join(out_dir, 'attrs_avg.h5'), 
                                             device=device,
                                             compute_subset=False)
-=======
-        comb_model.eval()
-        discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
-        attr_manager = am.AttributionManager(discrim_model)
-        attr_manager.get_attributions(test_generator, filename=os.path.join(out_dir, 'attrs.h5'), device=device)
-        attr_avg = attr_manager.get_attribution_average(x_test,
-                                                        y_test.max().item()+1,
-                                                        os.path.join(out_dir, 'attrs.h5'),
-                                                        device)
-        np.save(file=os.path.join(out_dir, 'attrs_avg.h5'), arr=attr_avg.cpu())
->>>>>>> master
-
 
 def parse_args():
     parser = argparse.ArgumentParser(

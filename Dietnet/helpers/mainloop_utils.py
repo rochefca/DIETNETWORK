@@ -194,13 +194,13 @@ def load_theano_model(n_feats_emb, emb_n_hidden_u, discrim_n_hidden1_u, discrim_
 
     #  disc model
     convert_theano_array_to_pytorch_tensor_1d(comb_model.disc_net.fat_bias, theano_model_params['arr_3'])
-    
+
     convert_theano_bn_pytorch(comb_model.disc_net.bn1, 
                           theano_model_params['arr_4'], 
                           theano_model_params['arr_5'], 
                           theano_model_params['arr_6'], 
                           theano_model_params['arr_7'])
-    
+
     convert_theano_array_to_pytorch_tensor(comb_model.disc_net.hidden_2.weight, theano_model_params['arr_8'])
     convert_theano_array_to_pytorch_tensor_1d(comb_model.disc_net.hidden_2.bias, theano_model_params['arr_9'])
 
