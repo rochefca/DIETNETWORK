@@ -97,7 +97,7 @@ class Discrim_net2(nn.Module):
     """
     def __init__(self, n_feats,
                  n_hidden1_u, n_hidden2_u, n_targets,
-                 param_init, input_dropout = 0., incl_bias=True):
+                 param_init, input_dropout=0., incl_bias=True):
         super(Discrim_net2, self).__init__()
 
         # Theano values for params init

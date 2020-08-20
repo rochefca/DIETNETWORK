@@ -6,7 +6,7 @@ __pycache__/
 .ipynb_checkpoints
 *.ipynb
 run.sh
+make_attributions_run.sh
 
-# Not needed anymore folders (fake data used to debug)
-DATA
-EXPERIMENT_01
+DATA/
+EXPERIMENT_01/
