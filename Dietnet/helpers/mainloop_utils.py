@@ -80,17 +80,29 @@ def test(test_generator, set_size, discrim_model):
     return test_score, test_pred, test_acc
 
 
-def create_eval_model(comb_model, emb, device):
-    #  this only works with 1 GPU or CPU
+def create_disc_model(comb_model, emb, device):
+    """
+    this only works with 1 GPU or CPU
+    note: the function name is misleading. This does not create a new model. It just
+    takes the pre-existing model and
+    returns a function that performs the forward pass on it (with fixed embedding).
+    this should be okay since python passes args by reference, so even if comb_model
+    weights change, the corresponding function will also change
+    
+    Finally, remember that disc_model will be in whatever mode comb_model is, 
+    so if comb_model is in train mode, switch it to eval mode before calling 
+    ßthe output of this.
+    """
+
     if torch.cuda.device_count() > 1:
         print('warning: this only works during training/inference with 1 GPU!')
-    comb_model.eval()
+    comb_model = comb_model.eval()
     comb_model.to(device)
     discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
     return discrim_model
 
 
-def create_eval_model_multi_gpu(comb_model, emb, device):
+def create_disc_model_multi_gpu(comb_model, emb, device):
     """
     Transforms comb_model + emb into equivalent discrim model (with fatlayer weights added as parameters)
     This model can now be sent to multiple GPUs without any bugs
@@ -219,6 +231,6 @@ def load_theano_model(n_feats_emb, emb_n_hidden_u, discrim_n_hidden1_u, discrim_
 
         emb = emb.to(device)
         #  create disc_net from loaded comb_model
-        model_to_return = create_eval_model_multi_gpu(model_to_return, emb, device)
+        model_to_return = create_disc_model_multi_gpu(model_to_return, emb, device)
 
     return model_to_return

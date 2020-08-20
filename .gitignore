@@ -8,3 +8,5 @@ __pycache__/
 run.sh
 make_attributions_run.sh
 
+DATA/
+EXPERIMENT_01/

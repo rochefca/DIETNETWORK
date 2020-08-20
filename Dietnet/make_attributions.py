@@ -81,7 +81,8 @@ def load_model(model_path, emb, device, n_feats, n_hidden_u, n_hidden1_u,  n_hid
 
     comb_model.load_state_dict(torch.load(model_path))
     comb_model.to(device)
-    discrim_model = mlu.create_eval_model_multi_gpu(comb_model, emb, device)
+    comb_model = comb_model.eval()
+    discrim_model = mlu.create_disc_model_multi_gpu(comb_model, emb, device)
     return discrim_model
 
 
@@ -180,6 +181,7 @@ def main(args):
     out = attr_manager.get_attribution_average()
     with h5py.File(os.path.join(out_dir, 'attrs_avg.h5'), 'w') as hf:
         hf['avg_attr'] = out.cpu().numpy()
+        print('Saved attribution averages to {}'.format(out_dir, 'attrs_avg.h5'))
 
 
 if __name__ == '__main__':

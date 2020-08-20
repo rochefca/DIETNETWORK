@@ -152,14 +152,12 @@ def main():
     valid_acc = []
 
     # this is the discriminative model!
-    discrim_model = mlu.create_eval_model(comb_model, emb, device)
+    discrim_model = mlu.create_disc_model(comb_model, emb, device)
 
     # Monitoring: validation baseline
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
                                        discrim_model, criterion)
     print('baseline loss:',min_loss, 'baseline acc:', best_acc)
-    del discrim_model
-    torch.cuda.empty_cache()
 
     # Monitoring: Nb epoch without improvement after which to stop training
     patience = 0
@@ -209,12 +207,9 @@ def main():
         print('train loss:', epoch_loss, 'train acc:', epoch_acc, flush=True)
 
         # ---Validation---
-        discrim_model = mlu.create_eval_model(comb_model, emb, device)
-
+        comb_model = comb_model.eval()
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
-        del discrim_model
-        torch.cuda.empty_cache()
 
         valid_losses.append(epoch_loss)
         valid_acc.append(epoch_acc)
@@ -250,12 +245,8 @@ def main():
     lu.save_model_params(out_dir, comb_model)
 
     # ---Test---
-    discrim_model = mlu.create_eval_model(comb_model, emb, device)
-
+    comb_model = comb_model.eval()
     score, pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
-
-    del discrim_model
-    torch.cuda.empty_cache()
 
     print('Final accuracy:', str(acc))
     print('total running time:', str(total_time))
@@ -274,14 +265,6 @@ def main():
                             pred, score,
                             data['label_names'], data['snp_names'],
                             mus, sigmas)
-    
-    # can clear out stuff to make space on GPU for attribution computation!
-    del data, folds_indexes, train_indexes, valid_indexes, \
-    samples_train, samples_valid, x_train, x_valid, y_train, y_valid, \
-    mus, sigmas, x_train_normed, x_valid_normed, \
-    train_set, valid_set, train_generator, valid_generator
-
-    torch.cuda.empty_cache()
 
 
 def parse_args():
