@@ -1,6 +1,8 @@
 """
 This script creates the AttributionManager object, which handles attribution creation and analysis
 """
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -8,150 +10,214 @@ import h5py
 
 from helpers import mainloop_utils as mlu
 
-
 class AttributionManager():
     """
     Manager of attribution computations
     """
-    def __init__(self, model=None, attr_type=None, backend=None, device=None, **kwargs):
-        self.no_attribution_mode = False
-        if device == None:
-            #  use cpu by default
-            device = torch.device('cpu')
+    def __init__(self):
+        self.model = None                 # load model here
+        self.raw_attributions_file = None # raw attribution read/write location
+        self.attr_func = None             # attribution function (this is called when attributions are created)
+        self.genotypes_data = None        # genotype data  (for attribution analysis)
+        self.data_generator = None        # data generator (for creating attributions)
+        self.device = torch.device('cpu') # use cpu by default
 
-        self.model = model
-        if self.model == None:
-            print('Not using any model! you can use this object to analyze loaded attributions, but cannot make attribution files!')
-            self.no_attribution_mode = True
+    @property
+    def create_mode(self):
+        """
+        Returns true if you have everything you need to compute attributions
+        (does not type check, so you can still get errors!)
+        """
+        return (self.model is not None) and \
+        (self.attr_func is not None) and \
+        (self.data_generator is not None) and \
+        (self.raw_attributions_file is not None)
+
+    @property
+    def analyze_mode(self):
+        """
+        Returns true if you have everything you need to analyze attributions
+        (does not type check, so you can still get errors!)
+        """
+        return (self.genotypes_data is not None) and \
+        (self.raw_attributions_file is not None) and \
+        (self.data_generator is not None) 
+
+    def init_attribution_function(self, attr_type='int_grad', backend='captum', **kwargs):
+        """
+        sets the attr_func based on attribution type and which engine we are using (captum vs custom!)
+        so far tried this with: 
+        * Integrated gradients ("int_grad")
+        * Saliency ("saliency") from https://arxiv.org/pdf/1312.6034.pdf
+        """
+
+        if self.model is None:
+            raise ValueError('Cannot initialize attribution function before model!')
+
+        #  Note that kwargs gets passed directly to engine.<ATTRIBUTE NAME> function initializer
+        #  We save them in this variable
+        self.init_additional_args = kwargs
+        self.attr_type = attr_type
+
+        if backend == 'captum':
+            from captum import attr as engine
+        elif backend == 'custom':
+            import Dietnet.Interpretability.custom_engine as engine
         else:
-            self.model = self.model.to(device)
+            raise NotImplementedError
 
-        self.initialize_attribution_method(attr_type, backend, **kwargs)
+        if attr_type == 'int_grad':
+            self.attr_func = engine.IntegratedGradients(self.model, **kwargs)
+        elif attr_type == 'saliency':
+            self.attr_func = engine.Saliency(self.model, **kwargs)
+        else:
+            raise NotImplementedError
+
+        print('initialized attribution_function. You can call `create_attributions` method once you set model and data_generator')
+
+    def set_model(self, model):
+        self.model = model
+
+    def set_genotypes_data(self, genotypes_data):
+        self.genotypes_data = genotypes_data
+
+    def set_data_generator(self, data_generator):
+        self.data_generator = data_generator
+
+    def set_raw_attributions_file(self, filename):
+        self.raw_attributions_file = filename
+
+    def set_device(self, device):
         self.device = device
 
-    def initialize_attribution_method(self, attr_type=None, backend=None, **kwargs):
-        # Note that kwargs gets passed directly to engine.<ATTRIBUTE NAME> function initializer
-        if backend == 'captum' and not self.no_attribution_mode:
-            from captum import attr as engine
-        elif backend == 'custom' and not self.no_attribution_mode:
-            import Dietnet.Interpretability.custom_engine as engine
-        elif backend == None:
-            print('Not using any engine! you can use this object to analyze loaded attributions, but cannot make attribution files!')
-            self.no_attribution_mode = True
+    def create_raw_attributions(self, compute_subset, only_true_labels=False, **kwargs):
+        """
+        Computes attr_func for true_labels or for all labels and saves them to an h5 file
+        This file can be quite large (20GB)
+        """
+        if not self.create_mode:
+            print('Cannot create attributions. Set model and data_generator and attr_type')
         else:
-            raise NotImplementedError
+            #  These kwargs get passed into self.attr_func.attribute 
+            #  We save them in this variable
+            self.attr_additional_args = kwargs
+            with h5py.File(self.raw_attributions_file, 'w') as hf:
+                n_categories, n_samples, n_feats = self._load_data()
+                if only_true_labels:
+                    n_categories = 1
+                hf.create_dataset(self.attr_type, shape=[n_samples, n_feats, n_categories])
 
-        if attr_type == 'int_grad' and not self.no_attribution_mode:
-            self.attr_func = engine.IntegratedGradients(self.model, **kwargs)
-        elif attr_type == None:
-            print('No attribution type selected! you can use this object to analyze loaded attributions, but cannot make attribution files!')
-            self.no_attribution_mode = True
-        else:
-            raise NotImplementedError
+                #  compute attributions at end of training (only for correct class)
+                with torch.no_grad():
+                    idx = 0
+                    for x_batch, y_batch, _ in self.data_generator:
+                        # Forward pass
+                        if only_true_labels:
+                             attr = self._compute_attribute_true_class(x_batch,
+                                                                       y_batch,
+                                                                       **kwargs)
+                        else:
+                            attr = self._compute_attribute_each_class(x_batch,
+                                                                      np.arange(n_categories),
+                                                                      **kwargs)
+                        #  make sure you are on CPU when copying to hf object
+                        hf[self.attr_type][idx:idx+len(x_batch)] = attr.permute(1,2,0).cpu().numpy()
+                        idx += len(x_batch)
 
-    def make_attribution_files(self, 
-                               data_generator, 
-                               test_genotypes,
-                               n_categories,
-                               attribution_file, 
-                               save_file,
-                               compute_subset=False,
-                               **kwargs):
+                        if compute_subset:
+                            #  only computes attribute for first batch
+                            break
 
-        if not self.no_attribution_mode:
-            # Note that kwargs gets passed directly to engine.<ATTRIBUTE NAME>.attribute method
-            # for captum integrated gradients to match with our custom implementation, use kwargs:
-            # n_steps=100, method='riemann_left', baseline= the 0 tensor
-            self._get_attributions(data_generator, attribution_file, compute_subset, **kwargs)
-            self._get_attribution_average(test_genotypes, n_categories, attribution_file, save_file, compute_subset)
-
-    def _get_attributions(self, test_generator, filename, compute_subset, **kwargs):
-        hf = h5py.File(filename, 'w')
-        n_categories, n_samples, n_feats = _load_data(test_generator)
-        hf.create_dataset('integrated_gradients', shape=[n_samples, n_feats, n_categories])
-
-        #  compute attributions at end of training (only for correct class)
-        with torch.no_grad():
-            idx = 0
-            for x_batch, _, _ in test_generator:
-                # Forward pass
-                attr = self._compute_attribute_each_class(x_batch,
-                                                          np.arange(n_categories),
-                                                          **kwargs)
-                #  make sure you are on CPU when copying to hf object
-                hf['integrated_gradients'][idx:idx+len(x_batch)] = attr.permute(1,2,0).cpu().numpy()
-                idx += len(x_batch)
-                
-                if compute_subset:
-                    #  only computes attribute for first batch
-                    break
-
-                print('completed {}/{} [{:3f}%]'.format(idx, n_samples, 100*idx/n_samples))
-        hf.close()
-        print('saved attributions to {}'.format(filename))
+                        print('completed {}/{} [{:3f}%]'.format(idx, n_samples, 100*idx/n_samples))
+            print('saved attributions to {}'.format(self.raw_attributions_file))
 
     def _compute_attribute_each_class(self, input_batch, label_names, **kwargs):
-        #  computes attributions for all classes, **kwargs passed directly to ig.attribute (e.g. n_steps=50)
-        #  all inputs and computations done on device, output stays on device
+        """
+        computes attributions for all classes, 
+        **kwargs passed directly to attr_func.attribute (e.g. n_steps=50)
+        all inputs and computations done on device, output stays on device
+        """
+
         atts_per_class = []
         for label in label_names:
-            attr, delta = self.attr_func.attribute(inputs=(input_batch.to(self.device)), 
-                                                   target=torch.empty(input_batch.shape[0]).fill_(label).to(self.device).long(), 
-                                                   return_convergence_delta=True, 
-                                                   **kwargs)
+            #  don't pass args which produce other outputs (e.g. return_convergence_delta for int_grad)
+            attr = self.attr_func.attribute(inputs=(input_batch.to(self.device)), 
+                                            target=torch.empty(input_batch.shape[0]).fill_(label).to(self.device).long(),
+                                            **kwargs)
+            #  if >1 outputs, keep only the first one (the attributions)
+            if isinstance(attr, tuple):
+                attr = attr[0]
             atts_per_class.append(attr.detach())
         return torch.stack(atts_per_class)
 
-    def _get_attribution_average(self, test_genotypes, n_categories, attribution_file, save_file, compute_subset):
-        #  computes average attributions over every class
-        n_samples, n_feats = test_genotypes.shape
+    def _compute_attribute_true_class(self, input_batch, target_batch, **kwargs):
+        """
+        Only returns attributions where the target is the true class
+        **kwargs passed directly to attr_func.attribute (e.g. n_steps=50)
+        """
+        attr = self.attr_func.attribute(inputs=(input_batch.to(self.device)),
+                                        target=target_batch.to(self.device),
+                                        **kwargs)
+        #  if >1 outputs, keep only the first one (the attributions)
+        if isinstance(attr, tuple):
+            attr = attr[0]
+        return attr[None,:,:]
 
-        avg_int_grads = torch.zeros((n_feats, 3, n_categories), dtype=torch.float32).to(self.device)
-        counts_int_grads = torch.zeros((n_feats, 3), dtype=torch.int32).to(self.device)
+    def _load_data(self):
+        """
+        Takes self.data_generator (torch.utils.data.DataLoader object)
+        and extracts useful numbers
+        expects self.data_generator.dataset to be of class dataset_utils.FoldDataset
+        """
+        n_categories = self.data_generator.dataset.ys.max().item()+1
+        n_samples = self.data_generator.dataset.xs.shape[0]
+        n_feats = self.data_generator.dataset.xs.shape[1]
+        return n_categories, n_samples, n_feats
 
-        with h5py.File(attribution_file, 'r') as hf:
-            for i, dat in enumerate(test_genotypes):
-                int_grads = torch.tensor(hf['integrated_gradients'][i][:, None, :]).to(self.device)
-                snp_value_mask = torch.arange(3).view(1,3).to(self.device) == dat[:, None]
-                avg_int_grads += snp_value_mask[:, :, None] * int_grads
-                counts_int_grads += snp_value_mask
-
-                if compute_subset:
-                    #  only computes attribute for first batch
-                    break
-
-        avg_int_grads = avg_int_grads / counts_int_grads[:, :, None]
-
-        with h5py.File(save_file, "w") as hf:
-            hf["avg_int_grad"] = avg_int_grads.detach().cpu().numpy()
-        print('saved attributions to {}'.format(save_file))
-
-        return avg_int_grads
-    
-    def load_attribution_file(self, attributions_path):
-        #  loads raw attribution file for analysis
-        self.hf = h5py.File(attributions_path, 'r')
-        self.int_grads_full = self.hf['integrated_gradients']
-    
-    def close_attribution_file(self):
-        self.hf.close()
-    
-    def check_completeness(self, indices, baseline, x_test_normed, attributions_path):
-        #  indices = list of indices to check completeness of
+    def get_attribution_average(self, use_true_class_only=False):
+        """
+        Computes average attribution for population for SNP variant across each position.
+        Only works with output of create_raw_attributions when only_true_labels=False
         
-        self.load_attribution_file(attributions_path)
-        
-        F_x = self.model(x_test_normed[indices])
-        F_0 = self.model(baseline)
-        print('vals differ on avg by {:.3f}'.format(((F_x-F_0).cpu().detach().numpy() - self.int_grads_full[indices].sum(1)).mean()))
-        
-        self.close_attribution_file()
+        Output is always num_samples x num_feats x num_targets
+        if use_true_class_only=False, then 26 is the output of each class on that particular target.
+        if use_true_class_only=True, then the 26 is the ground truth of the class 
+        (attributions for predictions of classes that are not the ground truth are ignored in this case!)
+        """
 
+        if not self.analyze_mode:
+            print('Cannot create attributions. Set model and data_generator and attr_type')
+        else:
+            n_samples, n_feats = self.genotypes_data.shape
+            with h5py.File(self.raw_attributions_file, 'r') as hf:
+                self.attr_type = list(hf.keys())[0]
+                n_categories = hf[self.attr_type].shape[2]
 
-def _load_data(data_generator):
-    #  takes torch.utils.data.DataLoader object and extracts useful numbers
-    #  expects data_generator.dataset to be of class dataset_utils.FoldDataset
-    n_categories = data_generator.dataset.ys.max().item()+1
-    n_samples = data_generator.dataset.xs.shape[0]
-    n_feats = data_generator.dataset.xs.shape[1]
-    return n_categories, n_samples, n_feats
+            avg_int_grads = torch.zeros((n_feats, 3, n_categories), dtype=torch.float32).to(self.device)
+            counts_int_grads = torch.zeros((n_feats, 3, n_categories), dtype=torch.int32).to(self.device)
+            ground_truth_mask = torch.eye(n_categories, n_categories, dtype=torch.int32).view(1,1,n_categories, n_categories).to(self.device)
+
+            with h5py.File(self.raw_attributions_file, 'r') as hf:
+                for i, dat in enumerate(self.genotypes_data):
+                    
+                    #  (n_feats, 1, n_categories)
+                    int_grads = torch.tensor(hf[self.attr_type][i][:, None, :]).to(self.device)
+
+                    #  (n_feats, 3)
+                    snp_value_mask = torch.arange(3).view(1,3).to(self.device) == dat[:, None]
+                    if use_true_class_only:
+                        ground_truth = self.data_generator.dataset.ys[i]
+                        #  mask now excludes values from incorrect class!
+                        #  (n_feats, 3, n_categories)
+                        snp_value_mask = (snp_value_mask[:, :, None])*ground_truth_mask[:,:,ground_truth]
+                    else:
+                        #  (n_feats, 3, 1)
+                        snp_value_mask = snp_value_mask[:, :, None]
+
+                    avg_int_grads += snp_value_mask * int_grads
+                    counts_int_grads += snp_value_mask
+
+                    if i % 20 == 0:
+                        print('completed {}/{} [{:3f}%]'.format(i, n_samples, 100*i/n_samples))
+
+            return avg_int_grads / counts_int_grads

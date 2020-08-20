@@ -13,7 +13,6 @@ import helpers.dataset_utils as du
 import helpers.model as model
 import helpers.mainloop_utils as mlu
 import helpers.log_utils as lu
-import Interpretability.attribution_manager as am
 
 
 def main():
@@ -275,7 +274,7 @@ def main():
                             pred, score,
                             data['label_names'], data['snp_names'],
                             mus, sigmas)
-
+    
     # can clear out stuff to make space on GPU for attribution computation!
     del data, folds_indexes, train_indexes, valid_indexes, \
     samples_train, samples_valid, x_train, x_valid, y_train, y_valid, \
@@ -284,33 +283,6 @@ def main():
 
     torch.cuda.empty_cache()
 
-    """
-    import gc
-    for obj in gc.get_objects():
-        try:
-            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                print(type(obj), obj.size())
-        except:
-            pass
-
-    import pdb
-    pdb.set_trace()
-    """
-
-    # Get attributions
-    if args.save_attributions:
-        discrim_model = mlu.create_eval_model_multi_gpu(comb_model, emb, device)
-        del comb_model, emb
-        torch.cuda.empty_cache()
-
-        attr_manager = am.AttributionManager(discrim_model, attr_type='int_grad', backend='captum', device=device)
-        attr_manager.make_attribution_files(test_generator, 
-                                            x_test,
-                                            y_test.max().item()+1,
-                                            os.path.join(out_dir, 'attrs.h5'), 
-                                            os.path.join(out_dir, 'attrs_avg.h5'), 
-                                            device=device,
-                                            compute_subset=False)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -429,12 +401,6 @@ def parse_args():
             '--param-init',
             type=str,
             help='File of parameters initialization values'
-            )
-
-    parser.add_argument(
-            '--save_attributions',
-            help='Compute attributions (Integrated Gradients)',
-            action='store_true'
             )
 
     return parser.parse_args()
