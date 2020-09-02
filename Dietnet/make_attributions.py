@@ -18,7 +18,8 @@ import helpers.model as model
 from Interpretability import attribution_manager as am
 import helpers.log_utils as lu
 
-def load_data(exp_path, dataset, folds_indexes, which_fold, seed, train_valid_ratio, device):
+
+def load_data(exp_path, dataset, folds_indexes, which_fold, seed, train_valid_ratio, device, batch_size=12):
     
     # Get fold data (indexes and samples are np arrays, x,y are tensors)
     data = du.load_data(os.path.join(exp_path, dataset))
@@ -60,15 +61,16 @@ def load_data(exp_path, dataset, folds_indexes, which_fold, seed, train_valid_ra
     valid_set = du.FoldDataset(x_valid_normed, y_valid, samples_valid)
     test_set = du.FoldDataset(x_test_normed, y_test, samples_test)
 
-    test_batch_size = 12 # smaller since doing attributions on this!
-
     test_generator = DataLoader(test_set,
-                                batch_size=test_batch_size,
+                                batch_size=batch_size,
                                 shuffle=False)
+    
+    del train_set, valid_set, x_train_normed, x_valid_normed, x_train, x_valid, samples_train, samples_valid, samples_test, folds_indexes, mus, sigmas
+    torch.cuda.empty_cache()
     
     return test_generator, x_test
 
-def load_model(model_path, emb, device, n_feats, n_hidden_u, n_hidden1_u,  n_hidden2_u, n_targets, input_dropout, incl_bias=True):
+def load_model(model_path, emb, device, n_feats, n_hidden_u, n_hidden1_u,  n_hidden2_u, n_targets, input_dropout, incl_bias=True, incl_softmax=False):
     comb_model = model.CombinedModel(
         n_feats,
         n_hidden_u,
@@ -77,12 +79,17 @@ def load_model(model_path, emb, device, n_feats, n_hidden_u, n_hidden1_u,  n_hid
         n_targets,
         param_init=None,
         input_dropout=input_dropout,
-        incl_bias=incl_bias)
+        incl_bias=incl_bias,
+        incl_softmax=incl_softmax)
 
     comb_model.load_state_dict(torch.load(model_path))
     comb_model.to(device)
     comb_model = comb_model.eval()
-    discrim_model = mlu.create_disc_model_multi_gpu(comb_model, emb, device)
+    discrim_model = mlu.create_disc_model_multi_gpu(comb_model, emb, device, incl_softmax)
+
+    del comb_model
+    torch.cuda.empty_cache()
+
     return discrim_model
 
 
