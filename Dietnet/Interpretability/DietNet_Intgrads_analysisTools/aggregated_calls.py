@@ -8,15 +8,15 @@ from Interpretability.DietNet_Intgrads_analysisTools import convert_from_leo as 
 
 
 ### MAIN() SECTION ####
-def CoarseIntgrads_vs_FineIntgrads(EXPERIMENT_NAME, PATH_INTGRADS_coarse, PATH_INTGRADS_fine,WORKING_DIR):
+def CoarseIntgrads_vs_FineIntgrads(EXPERIMENT_NAME, PATH_INTGRADS_coarse, PATH_INTGRADS_fine, WORKING_DIR):
     
     PATH_GRAPH = os.path.join(WORKING_DIR, 'graphs')
     superpopulations = ['AFR', 'EUR']
 
     superpop_to_ethn = {"AFR" : ["YRI", "LWK", "GWD", "MSL", "ESN", "ACB"],
-                                "EUR" : ["CEU", "TSI", "FIN", "GBR", "IBS"],
-                                                    "EAS" : ["CHB", "JPT", "CHS", "CDX", "KHV"]}
-    positive_negative_in_continent, grads_feature_fine, grads_values_fine, grads_labelNames_fine = process.load_Intgrads(PATH_INTGRADS_fine,aggregate=True, aggregate_rule = [[1, 4, 6, 7, 9],[0, 2, 3, 5, 8]]) #AFR Then EUR
+                        "EUR" : ["CEU", "TSI", "FIN", "GBR", "IBS"],
+                        "EAS" : ["CHB", "JPT", "CHS", "CDX", "KHV"]}
+    positive_negative_in_continent, grads_feature_fine, grads_values_fine, grads_labelNames_fine = process.load_Intgrads(PATH_INTGRADS_fine, aggregate=True, aggregate_rule = [[1, 4, 6, 7, 9],[0, 2, 3, 5, 8]]) #AFR Then EUR
 
     grads_feature_names_coarse, grads_values_coarse, grads_labelNames_coarse = process.load_Intgrads(PATH_INTGRADS_coarse)
     x_scale = 25
@@ -25,9 +25,11 @@ def CoarseIntgrads_vs_FineIntgrads(EXPERIMENT_NAME, PATH_INTGRADS_coarse, PATH_I
                                          grads_values_fine, 
                                          ['AFR','EUR'],
                                          PATH_GRAPH, 
-                                         'Compare_models'+EXPERIMENT_NAME,x_scale* 5.3e-06, 1.03,
+                                         'Compare_models'+EXPERIMENT_NAME,
+                                         x_scale* 5.3e-06, 
+                                         1.03,
                                          'Intgrads model Coarse', 
-                                         'Intgrads model Fine' ,
+                                         'Intgrads model Fine',
                                          only_one_line=True)
 
 #    grads_feature_names, grads_values_coarse, grads_labelNames = process.load_Intgrads(PATH_INTGRADS_coarse)

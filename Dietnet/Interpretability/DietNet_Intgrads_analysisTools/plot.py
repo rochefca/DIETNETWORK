@@ -15,7 +15,18 @@ def scramble_array(array):
     np.random.shuffle(x)
     return x
 
-def tilled_plot(grads_values, Cmetric_values, populations, graph_path, graph_title, x_lim, y_lim, x_axisName, y_axisName ,  scramble=False, only_one_line=True, possible_genotypes=[0,1,2]):
+def tilled_plot(grads_values, 
+                Cmetric_values, 
+                populations, 
+                graph_path, 
+                graph_title, 
+                x_lim, 
+                y_lim, 
+                x_axisName, 
+                y_axisName ,  
+                scramble=False, 
+                only_one_line=True, 
+                possible_genotypes=[0,1,2]):
 
     if only_one_line == True: # We can only look at attribution for one population, this is useful when training is done with only two populations
         populations = populations[0]

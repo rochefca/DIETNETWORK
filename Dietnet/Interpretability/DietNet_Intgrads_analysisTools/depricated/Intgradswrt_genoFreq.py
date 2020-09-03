@@ -6,7 +6,8 @@ import numpy as np
 
 import plot
 import process_data as process
-import PATHS
+
+def 
 
 ### MAIN() SECTION ####
 #PATH = PATHS.path_variables('Intgradswrt_genoFreq_AFR_EUR_Fst_embed.py')
