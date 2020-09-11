@@ -83,15 +83,15 @@ def get_uniform_output_baseline(disc_net, device, init_baseline=None):
     return params
 
 
-def test_net_quickly(disc_net, test_generator):
+def test_net_quickly(disc_net, test_generator, device=torch.device('cpu')):
     #  check that model gets correct performance
     acc = 0
     total = 0
     preds = []
     for i, data in enumerate(test_generator):
-        p = disc_net(data[0]).argmax(1)
+        p = disc_net(data[0].to(device))
         preds.append(p)
-        acc += (p == data[1]).sum()
+        acc += (p.argmax(1) == data[1].to(device)).sum()
         total += data[1].shape[0]
         #if i == 5:
         #    break

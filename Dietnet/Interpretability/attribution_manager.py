@@ -205,6 +205,8 @@ class AttributionManager():
             with h5py.File(self.raw_attributions_file, 'r') as hf:
                 for i, dat in enumerate(self.genotypes_data):
                     
+                    dat = dat.to(self.device)
+                    
                     #  (n_feats, 1, n_categories)
                     int_grads = torch.tensor(hf[self.attr_type][i][:, None, :]).to(self.device)
 
