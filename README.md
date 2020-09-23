@@ -10,17 +10,6 @@ Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
 ## Scripts
 ### Main scripts
 1. **create_dataset.py** : Create dataset and partition data into folds. The script takes snps.txt and labels.txt files as input to create dataset.npz and folds_indexes.npz
-<<<<<<< HEAD
-2. **generate_embedding.py** : Takes dataset.npz and folds_indexes.npz files created in the previous step and computes the embedding (genotypic frequency) of every fold. Embedding of each fold is saved in embedding.npz
-  - Missing values are -1 and are not included in the computation of genotypic frequencies embedding
-  - Embedding values are computed on train and valid sets
-3. **train.py** : Whole training process. The data is divided in train/valid and test sets. Performance is reported on the test set.
-  - Data preprocessing of auxiliary net : Square Euclidean distance normalization
-  - Data preprocessing of discrim net: Missing values are replaced by the mean of the feature computed on training set. Data normalization (standardization) using mean and sd computed on training set.
-4. **test_external_dataset.py** : Test model on an external set, ie on individuals that are not part of dataset.npz
-5. **evaluate.py** : Utilities to visualize the model performance such as confusion matrix
-
-=======
 1. **generate_embedding.py** : Takes dataset.npz and folds_indexes.npz files created in the previous step and computes the embedding (genotypic frequency) of every fold. Embedding of each fold is saved in embedding.npz
     1. Missing values are -1 and are not included in the computation of genotypic frequencies embedding
     1. Embedding values are computed on train and valid sets
@@ -29,7 +18,6 @@ Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
     1. Data preprocessing of discrim net: Missing values are replaced by the mean of the feature computed on training set. Data normalization (standardization) using mean and sd computed on training set.
 1. **test_external_dataset.py** : Test model on an external set, ie on individuals that are not part of dataset.npz
 1. **evaluate.py** : Utilities to visualize the model performance such as confusion matrix
->>>>>>> c9dfa8e... Update README.md
   
 ### Helper scripts
 - **dataset_utils.py** : Data related functions (shuffle, partition, split, get_fold_data, replace_missing_values, normalize, ...)
@@ -52,10 +40,6 @@ Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
 - **model_params.pt** : Model parameters of final trained model
 - **model_predictions.npz**: Scores and predictions returned by the trained model for test samples
 - **additional_data.npz** : Some more information used at training time (mus and sigmas values used for normalization, feature names, label names, training samples ids, validation samples ids, etc.) 
-<<<<<<< HEAD
-
-=======
->>>>>>> c9dfa8e... Update README.md
 
 ## To do
 - [x] Embedding
