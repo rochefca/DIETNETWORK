@@ -1,8 +1,5 @@
 # DIETNETWORK
-<<<<<<< HEAD
 
-=======
->>>>>>> c6df13a... Update README.md
 Pytorch implementation of DietNetwork (https://arxiv.org/abs/1611.09340)
 ## Training pipeline
 
