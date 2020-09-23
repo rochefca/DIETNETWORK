@@ -119,6 +119,8 @@ def main():
                  n_targets=n_targets,
                  param_init=args.param_init,
                  input_dropout=args.input_dropout)
+
+    #  Note: runs script in single GPU mode only!
     comb_model.to(device)
 
     # Loss
@@ -151,8 +153,7 @@ def main():
     valid_acc = []
 
     # this is the discriminative model!
-    comb_model.eval()
-    discrim_model = lambda x: comb_model(emb, x)
+    discrim_model = mlu.create_disc_model(comb_model, emb, device)
 
     # Monitoring: validation baseline
     min_loss, best_acc = mlu.eval_step(valid_generator, len(valid_set),
@@ -207,11 +208,10 @@ def main():
         print('train loss:', epoch_loss, 'train acc:', epoch_acc, flush=True)
 
         # ---Validation---
-        comb_model.eval()
-        discrim_model = lambda x: comb_model(emb, x)
-
+        comb_model = comb_model.eval()
         epoch_loss, epoch_acc = mlu.eval_step(valid_generator, len(valid_set),
                                               discrim_model, criterion)
+
         valid_losses.append(epoch_loss)
         valid_acc.append(epoch_acc)
         print('valid loss:', epoch_loss, 'valid acc:', epoch_acc,flush=True)
@@ -246,7 +246,9 @@ def main():
     lu.save_model_params(out_dir, comb_model)
 
     # ---Test---
+    comb_model = comb_model.eval()
     score, pred, acc = mlu.test(test_generator, len(test_set), discrim_model)
+
     print('Final accuracy:', str(acc))
     print('total running time:', str(total_time))
 
@@ -264,39 +266,6 @@ def main():
                             pred, score,
                             data['label_names'], data['snp_names'],
                             mus, sigmas)
-
-    # can clear out stuff to make space on GPU for attribution computation!
-    del data, folds_indexes, train_indexes, valid_indexes, \
-    samples_train, samples_valid, x_train, x_valid, y_train, y_valid, \
-    mus, sigmas, x_train_normed, x_valid_normed, \
-    train_set, valid_set, train_generator, valid_generator
-
-    torch.cuda.empty_cache()
-
-    """
-    import gc
-    for obj in gc.get_objects():
-        try:
-            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                print(type(obj), obj.size())
-        except:
-            pass
-
-    import pdb
-    pdb.set_trace()
-    """
-
-    # Get attributions
-    if args.save_attributions:
-        comb_model.eval()
-        discrim_model = lambda x: comb_model(emb, x) # recreate discrim_model
-        attr_manager = am.AttributionManager(discrim_model)
-        attr_manager.get_attributions(test_generator, filename=os.path.join(out_dir, 'attrs.h5'), device=device)
-        attr_avg = attr_manager.get_attribution_average(x_test,
-                                                        y_test.max().item()+1,
-                                                        os.path.join(out_dir, 'attrs.h5'),
-                                                        device)
-        np.save(file=os.path.join(out_dir, 'attrs_avg.h5'), arr=attr_avg.cpu())
 
 
 def parse_args():
@@ -410,18 +379,21 @@ def parse_args():
             help=('Input dropout. The number, between 0 and 1, indicates '
                   'the probability of an element to be zeroed. '
                   'Default: %(default)f')
+<<<<<<< HEAD
             )
 
     parser.add_argument(
             '--param-init',
             type=str,
             help='File of parameters initialization values'
+=======
+>>>>>>> wip
             )
 
     parser.add_argument(
-            '--save_attributions',
-            help='Compute attributions (Integrated Gradients)',
-            action='store_true'
+            '--param-init',
+            type=str,
+            help='File of parameters initialization values'
             )
 
     return parser.parse_args()
