@@ -379,15 +379,6 @@ def parse_args():
             help=('Input dropout. The number, between 0 and 1, indicates '
                   'the probability of an element to be zeroed. '
                   'Default: %(default)f')
-<<<<<<< HEAD
-            )
-
-    parser.add_argument(
-            '--param-init',
-            type=str,
-            help='File of parameters initialization values'
-=======
->>>>>>> wip
             )
 
     parser.add_argument(
