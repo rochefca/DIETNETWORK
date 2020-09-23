@@ -419,6 +419,7 @@ def parse_args():
                   'the probability of an element to be zeroed. '
                   'Default: %(default)f')
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
             )
 
@@ -427,6 +428,8 @@ def parse_args():
             type=str,
             help='File of parameters initialization values'
 >>>>>>> c2cad39... Command line option for input dropout
+=======
+>>>>>>> f31ffb3... merging wip with origin master
             )
 
     parser.add_argument(
