@@ -79,6 +79,10 @@ def test(test_generator, set_size, discrim_model):
 
     return test_score, test_pred, test_acc
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> origin
 
 
 def create_disc_model(comb_model, emb, device):
@@ -245,5 +249,9 @@ def load_theano_model(n_feats_emb, emb_n_hidden_u, discrim_n_hidden1_u, discrim_
                                                       incl_softmax=True) # Theano includes softmax in model
 
     return model_to_return
+<<<<<<< HEAD
 =======
 >>>>>>> fe5ad68... added integrated gradients and averaging (across populations)
+=======
+>>>>>>> wip
+>>>>>>> origin

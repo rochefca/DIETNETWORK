@@ -2,6 +2,10 @@
 This script creates the AttributionManager object, which handles attribution creation and analysis
 """
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin
 from pathlib import Path
 
 import torch
@@ -24,6 +28,10 @@ class AttributionManager():
     Manager of attribution computations
     """
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin
     def __init__(self):
         self.model = None                 # load model here
         self.raw_attributions_file = None # raw attribution read/write location
