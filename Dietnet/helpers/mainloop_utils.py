@@ -102,12 +102,15 @@ def create_disc_model(comb_model, emb, device):
     return discrim_model
 
 
-def create_disc_model_multi_gpu(comb_model, emb, device):
+def create_disc_model_multi_gpu(comb_model, emb, device, eps=1e-5, incl_softmax=False):
     """
     Transforms comb_model + emb into equivalent discrim model (with fatlayer weights added as parameters)
     This model can now be sent to multiple GPUs without any bugs
     (cannot do multi-GPU with comb_model since dataparallel will attempt to split the embedding up, 
     which will result in size incompatibilities)
+    
+    Must pass batchnorm eps seperately in case loading from Theano model!
+    Must pass incl_softmax seperately in case loading from Theano model!
     """
 
     n_feats_emb = emb.size()[1] # input of aux net
@@ -128,7 +131,9 @@ def create_disc_model_multi_gpu(comb_model, emb, device):
                                  n_feats=n_feats_emb, 
                                  n_hidden1_u=discrim_n_hidden1_u, 
                                  n_hidden2_u=discrim_n_hidden2_u, 
-                                 n_targets=26)
+                                 n_targets=26,
+                                 eps=eps,
+                                 incl_softmax=incl_softmax)
 
     #  copy over all weights
     disc_net.out.weight.data = comb_model.disc_net.out.weight.data
@@ -156,12 +161,12 @@ def create_disc_model_multi_gpu(comb_model, emb, device):
     return disc_net
 
 def convert_theano_array_to_pytorch_tensor(tensor, array):
-    array_as_tensor = torch.tensor(array.T)
+    array_as_tensor = torch.from_numpy(array.T)
     assert tensor.data.shape == array_as_tensor.shape
     tensor.data = array_as_tensor
 
 def convert_theano_array_to_pytorch_tensor_1d(tensor, array):
-    array_as_tensor = torch.tensor(array)
+    array_as_tensor = torch.from_numpy(array)
     assert tensor.data.shape == array_as_tensor.shape
     tensor.data = array_as_tensor
 
@@ -195,7 +200,9 @@ def load_theano_model(n_feats_emb, emb_n_hidden_u, discrim_n_hidden1_u, discrim_
                  n_hidden2_u=discrim_n_hidden2_u,
                  n_targets=n_targets,
                  param_init=None,
-                 input_dropout=0.)
+                 eps=1e-4, # Theano uses 1e-4 for batch norm instead of PyTorch default of 1e-5
+                 input_dropout=0.,
+                 incl_softmax=True) # theano includes softmax in output
 
     #  feat emb model
     convert_theano_array_to_pytorch_tensor(comb_model.feat_emb.hidden_1.weight, theano_model_params['arr_0'])
@@ -231,6 +238,9 @@ def load_theano_model(n_feats_emb, emb_n_hidden_u, discrim_n_hidden1_u, discrim_
 
         emb = emb.to(device)
         #  create disc_net from loaded comb_model
-        model_to_return = create_disc_model_multi_gpu(model_to_return, emb, device)
+        model_to_return = create_disc_model_multi_gpu(model_to_return, 
+                                                      emb, device, 
+                                                      eps=1e-4, # Theano uses 1e-4 for batch norm instead of PyTorch default of 1e-5
+                                                      incl_softmax=True) # Theano includes softmax in model
 
     return model_to_return

@@ -42,7 +42,7 @@ class Feat_emb_net(nn.Module):
 class Discrim_net(nn.Module):
     def __init__(self, fatLayer_weights, n_feats,
                  n_hidden1_u, n_hidden2_u, n_targets,
-                 input_dropout = 0.):
+                 input_dropout=0., eps=1e-05, incl_softmax=False):
         super(Discrim_net, self).__init__()
 
         # Dropout on input layer
@@ -52,13 +52,13 @@ class Discrim_net(nn.Module):
         self.hidden_1 = nn.Linear(n_feats, n_hidden1_u)
         self.hidden_1.weight = torch.nn.Parameter(fatLayer_weights)
         nn.init.zeros_(self.hidden_1.bias)
-        self.bn1 = nn.BatchNorm1d(num_features=n_hidden1_u)
+        self.bn1 = nn.BatchNorm1d(num_features=n_hidden1_u, eps=eps)
 
         # 2nd hidden layer
         self.hidden_2 = nn.Linear(n_hidden1_u, n_hidden2_u)
         nn.init.xavier_uniform_(self.hidden_2.weight)
         nn.init.zeros_(self.hidden_2.bias)
-        self.bn2 = nn.BatchNorm1d(num_features=n_hidden2_u)
+        self.bn2 = nn.BatchNorm1d(num_features=n_hidden2_u, eps=eps)
 
         # Output layer
         self.out = nn.Linear(n_hidden2_u, n_targets)
@@ -67,6 +67,8 @@ class Discrim_net(nn.Module):
 
         # Dropout
         self.dropout = nn.Dropout()
+        
+        self.incl_softmax = incl_softmax
 
 
     def forward(self, x):
@@ -84,7 +86,10 @@ class Discrim_net(nn.Module):
         a2 = self.dropout(a2)
 
         out = self.out(a2)
+
         # Softmax will be computed in the loss
+        if self.incl_softmax:
+            out = torch.softmax(out, 1)
 
         return out
 
@@ -97,7 +102,7 @@ class Discrim_net2(nn.Module):
     """
     def __init__(self, n_feats,
                  n_hidden1_u, n_hidden2_u, n_targets,
-                 param_init, input_dropout=0., incl_bias=True):
+                 param_init, input_dropout=0., eps=1e-5, incl_bias=True, incl_softmax=False):
         super(Discrim_net2, self).__init__()
 
         # Theano values for params init
@@ -109,7 +114,7 @@ class Discrim_net2(nn.Module):
 
         # 1st hidden layer (we don't need this anymore)
         #self.hidden_1 = F.linear(input, weight, bias=None)
-        self.bn1 = nn.BatchNorm1d(num_features=n_hidden1_u)
+        self.bn1 = nn.BatchNorm1d(num_features=n_hidden1_u, eps=eps)
 
         # 2nd hidden layer
         self.hidden_2 = nn.Linear(n_hidden1_u, n_hidden2_u)
@@ -119,7 +124,7 @@ class Discrim_net2(nn.Module):
         else:
             nn.init.xavier_uniform_(self.hidden_2.weight)
         nn.init.zeros_(self.hidden_2.bias)
-        self.bn2 = nn.BatchNorm1d(num_features=n_hidden2_u)
+        self.bn2 = nn.BatchNorm1d(num_features=n_hidden2_u, eps=eps)
 
         # Output layer
         self.out = nn.Linear(n_hidden2_u, n_targets)
@@ -139,6 +144,8 @@ class Discrim_net2(nn.Module):
 
         # Dropout
         self.dropout = nn.Dropout()
+        
+        self.incl_softmax = incl_softmax
 
 
     def forward(self, x, fatLayer_weights):
@@ -159,20 +166,22 @@ class Discrim_net2(nn.Module):
         a2 = self.dropout(a2)
 
         out = self.out(a2)
-        # Softmax will be computed in the loss
+        # Softmax will be computed in the loss. But want this during attributions
+        if self.incl_softmax:
+            out = torch.softmax(out, 1)
 
         return out
 
 
 class CombinedModel(nn.Module):
     def __init__(self, n_feats, n_hidden_u, n_hidden1_u, n_hidden2_u,
-                 n_targets, param_init, input_dropout=0., incl_bias=True):
+                 n_targets, param_init, input_dropout=0., eps=1e-5, incl_bias=True, incl_softmax=False):
         super(CombinedModel, self).__init__()
 
         # Initialize feat. embedding and discriminative networks
         self.feat_emb = Feat_emb_net(n_feats, n_hidden_u, param_init)
         self.disc_net = Discrim_net2(n_feats, n_hidden1_u, n_hidden2_u,
-                                     n_targets, param_init, input_dropout, incl_bias)
+                                     n_targets, param_init, input_dropout, eps, incl_bias, incl_softmax)
 
 
     def forward(self, emb, x_batch):

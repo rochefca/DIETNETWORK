@@ -10,6 +10,7 @@ import h5py
 
 from helpers import mainloop_utils as mlu
 
+
 class AttributionManager():
     """
     Manager of attribution computations
@@ -34,7 +35,7 @@ class AttributionManager():
         (self.raw_attributions_file is not None)
 
     @property
-    def analyze_mode(self):
+    def aggregate_mode(self):
         """
         Returns true if you have everything you need to analyze attributions
         (does not type check, so you can still get errors!)
@@ -70,6 +71,8 @@ class AttributionManager():
             self.attr_func = engine.IntegratedGradients(self.model, **kwargs)
         elif attr_type == 'saliency':
             self.attr_func = engine.Saliency(self.model, **kwargs)
+        elif attr_type == 'feat_ablation':
+            self.attr_func = engine.FeatureAblation(self.model, **kwargs)
         else:
             raise NotImplementedError
 
@@ -123,6 +126,8 @@ class AttributionManager():
                         #  make sure you are on CPU when copying to hf object
                         hf[self.attr_type][idx:idx+len(x_batch)] = attr.permute(1,2,0).cpu().numpy()
                         idx += len(x_batch)
+                        del x_batch, y_batch, attr
+                        torch.cuda.empty_cache()
 
                         if compute_subset:
                             #  only computes attribute for first batch
@@ -185,7 +190,7 @@ class AttributionManager():
         (attributions for predictions of classes that are not the ground truth are ignored in this case!)
         """
 
-        if not self.analyze_mode:
+        if not self.aggregate_mode:
             print('Cannot create attributions. Set model and data_generator and attr_type')
         else:
             n_samples, n_feats = self.genotypes_data.shape
@@ -199,6 +204,8 @@ class AttributionManager():
 
             with h5py.File(self.raw_attributions_file, 'r') as hf:
                 for i, dat in enumerate(self.genotypes_data):
+                    
+                    dat = dat.to(self.device)
                     
                     #  (n_feats, 1, n_categories)
                     int_grads = torch.tensor(hf[self.attr_type][i][:, None, :]).to(self.device)
